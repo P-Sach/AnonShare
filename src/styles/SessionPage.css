@@ -1,0 +1,286 @@
+.session-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #000;
+  color: #fff;
+}
+
+.session-container {
+  flex: 1;
+  padding: 60px 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.session-card {
+  background-color: #111;
+  border-radius: 8px;
+  padding: 30px;
+  margin-bottom: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.session-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.session-header h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.session-header p {
+  color: #aaa;
+  font-size: 16px;
+}
+
+.session-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+@media (min-width: 768px) {
+  .session-content {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+
+.qr-container {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.session-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.time-remaining {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  color: #aaa;
+}
+
+.countdown {
+  font-weight: bold;
+  color: #ff4d4d;
+  font-size: 18px;
+}
+
+.session-url-container {
+  display: flex;
+  width: 100%;
+}
+
+.session-url {
+  flex: 1;
+  padding: 12px;
+  background-color: #222;
+  border: 1px solid #333;
+  border-radius: 4px 0 0 4px;
+  color: white;
+  font-size: 16px;
+}
+
+.copy-btn {
+  padding: 0 20px;
+  background-color: #0066ff;
+  color: white;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-btn:hover {
+  background-color: #0052cc;
+}
+
+.copy-btn.copied {
+  background-color: #00cc66;
+}
+
+.share-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (min-width: 768px) {
+  .share-options {
+    flex-direction: row;
+  }
+}
+
+.share-btn,
+.cancel-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.share-btn {
+  background-color: #333;
+  color: white;
+  border: none;
+}
+
+.share-btn:hover {
+  background-color: #444;
+}
+
+.cancel-btn {
+  background-color: transparent;
+  color: #ff4d4d;
+  border: 1px solid #ff4d4d;
+}
+
+.cancel-btn:hover {
+  background-color: rgba(255, 77, 77, 0.1);
+}
+
+.confirmation-toast {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #00cc66;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeIn 0.3s, fadeOut 0.3s 4.7s;
+  z-index: 100;
+  white-space: nowrap;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+}
+
+.session-details {
+  background-color: #111;
+  border-radius: 8px;
+  padding: 30px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.session-details h2 {
+  margin-bottom: 20px;
+  font-size: 22px;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.detail-item h3 {
+  font-size: 16px;
+  color: #aaa;
+  margin-bottom: 5px;
+}
+
+.detail-item p {
+  font-size: 18px;
+}
+
+.session-cancelled {
+  text-align: center;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.cancelled-icon {
+  color: #ff4d4d;
+}
+
+.session-cancelled h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.session-cancelled p {
+  color: #aaa;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.new-share-btn {
+  display: inline-block;
+  padding: 12px 24px;
+  background-color: #0066ff;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.new-share-btn:hover {
+  background-color: #0052cc;
+}
+
+@media (max-width: 768px) {
+  .session-container {
+    padding: 30px 15px;
+  }
+
+  .session-card,
+  .session-details {
+    padding: 20px;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+}

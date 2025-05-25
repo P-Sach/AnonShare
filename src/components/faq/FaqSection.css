@@ -1,0 +1,36 @@
+.faq-section {
+  padding: 40px 0;
+  flex: 1;
+}
+
+.faq-header {
+  margin-bottom: 30px;
+}
+
+.faq-header h2 {
+  font-size: 14px;
+  color: #aaa;
+  margin-bottom: 10px;
+}
+
+.faq-header h1 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.faq-header p {
+  color: #aaa;
+  font-size: 16px;
+}
+
+.faq-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .faq-grid {
+    grid-template-columns: 1fr;
+  }
+}
