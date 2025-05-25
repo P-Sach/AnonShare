@@ -1,0 +1,125 @@
+.hero-section {
+  padding: 80px 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-badge {
+  --size: auto;
+  --transition-duration: 500ms;
+  --transition-easing: ease-out;
+  display: inline-flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 10px 20px;
+  margin-bottom: 40px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  transition: 
+    transform var(--transition-duration) var(--transition-easing),
+    background-color var(--transition-duration) var(--transition-easing);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  box-shadow: 
+    0px 10px 20px rgba(0, 0, 0, 0.1);
+  color: var(--foreground-color);
+  text-decoration: none;
+}
+
+.hero-badge::before {
+  content: '';
+  background: rgba(255, 255, 255, 0.4);
+  width: 60%;
+  height: 100%;
+  top: 0%;
+  left: -125%;
+  transform: skew(45deg);
+  position: absolute;
+  transition: left var(--transition-duration) var(--transition-easing);
+}
+
+.hero-badge:hover {
+  transform: translateY(-25%);
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.hero-badge:hover::before {
+  left: 150%;
+}
+
+.new-badge {
+  background-color: white;
+  color: black;
+  font-size: 15px;
+  font-weight: bold;
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-right: 10px;
+}
+
+.badge-text {
+  font-size: 16px;
+  margin-right: 10px;
+}
+
+.badge-arrow {
+  font-size: 16px;
+}
+
+.hero-content {
+  max-width: 700px;
+  margin: 0 auto 60px;
+}
+
+.hero-section h1 {
+  font-size: 48px;
+  font-weight: bold;
+  margin-bottom: 24px;
+}
+
+.hero-description {
+  font-size: 18px;
+  color: #aaa;
+  max-width: 600px;
+  margin: 0 auto 30px;
+  line-height: 1.6;
+}
+
+.get-started {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.get-started-text {
+  font-size: 15px;
+  color: #aaa;
+}
+
+.hero-image {
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.hero-image img {
+  width: 100%;
+  height: auto;
+}
+
+@media (min-width: 992px) {
+  .hero-section .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hero-image {
+    margin-top: 20px;
+  }
+}
+

@@ -1,0 +1,55 @@
+.phone-mockup {
+    position: relative;
+    width: 300px;
+    height: 600px;
+  }
+  
+  .phone-frame {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #111;
+    border-radius: 40px;
+    padding: 15px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    border: 8px solid #333;
+  }
+  
+  .phone-screen {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    border-radius: 25px;
+    overflow: hidden;
+    position: relative;
+  }
+  
+  .screen-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  
+  .phone-notch {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 25px;
+    background: #111;
+    border-bottom-left-radius: 15px;
+    border-bottom-right-radius: 15px;
+    z-index: 10;
+  }
+  
+  /* Animation */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+  
+  .phone-mockup {
+    animation: float 6s ease-in-out infinite;
+  }
