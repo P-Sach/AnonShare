@@ -116,15 +116,22 @@ export default function SharePage() {
         );
       }
 
+      console.log('Upload response:', res);
+
+      // Check if response is valid
+      if (!res || !res.sessionUrl) {
+        throw new Error('Invalid response from server');
+      }
+
       // Redirect to session page with only the access code
-      window.location.href = res.sessionUrl;
+      router.push(res.sessionUrl);
 
     } catch (err) {
-      console.error(err);
-      alert("Upload failed");
+      console.error('Upload error:', err);
+      alert(err.message || "Upload failed");
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const clearFiles = (e) => {

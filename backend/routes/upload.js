@@ -109,82 +109,19 @@ router.post('/', upload.single('file'), async (req, res) => {
     
     const downloadUrl = `${req.protocol}://${req.get('host')}/download/${accessCode}`;
     const qrCodeDataURL = await QRCode.toDataURL(downloadUrl);
+    
+    console.log('Upload successful:', { accessCode, ownerToken, sessionUrl: `/session/${ownerToken}` });
+    
     res.json({
       accessCode,
       ownerToken,
       sessionUrl: `/session/${ownerToken}`
     });
   } catch(err) {
-    console.error(err);
-    res.status(500).json({ error: 'Upload failed' });
+    console.error('Upload error:', err);
+    res.status(500).json({ error: 'Upload failed', message: err.message });
   }
 });
-router.post('/', upload.single('file'), async (req, res) => {
-  try {
-    const { file } = req;
-    const expireSeconds = parseInt(req.body.expireSeconds, 10) || 3600;
-    const expireAt = new Date(Date.now() + expireSeconds*1000);
-    const passwordHash = req.body.password
-      ? await bcrypt.hash(req.body.password, 10)
-      : null;
-
-    const maxDownloads = req.body.maxDownloads
-      ? parseInt(req.body.maxDownloads)
-      : null;
-    // save metadata in Mongo
-    const doc = await File.create({
-      originalName: file.originalname,
-      storageName:  file.filename,
-      mimeType:     file.mimetype,
-      size:         file.size,
-      expireAt:     expireAt,
-      passwordHash,
-      maxDownloads,
-    });
-
-    // generate internal session ID, public access code, and owner token
-    const sessionId = uuidv4();
-    const accessCode = generateAccessCode();
-    const ownerToken = generateOwnerToken();
-    
-    // Store sessionId -> fileId mapping (internal use)
-    await redis.set(`session:${sessionId}`, doc._id.toString(), 'EX', expireSeconds);
-    
-    // Store accessCode -> sessionId mapping (public facing - for downloads)
-    await redis.set(`access:${accessCode}`, sessionId, 'EX', expireSeconds);
-    
-    // Store ownerToken -> sessionId mapping (owner only - for session management)
-    await redis.set(`owner:${ownerToken}`, sessionId, 'EX', expireSeconds);
-    
-    // Store session metadata for the frontend (owner only)
-    const sessionMetadata = {
-      accessCode,
-      ownerToken,
-      sessionId,
-      fileId: doc._id.toString(),
-      downloadUrl: `/download/${accessCode}`,
-      expiresAt: expireAt.toISOString(),
-      createdAt: new Date().toISOString(),
-      maxDownloads: maxDownloads,
-      fileCount: 1,
-      totalSize: file.size,
-      downloads: 0
-    };
-    await redis.set(`metadata:${ownerToken}`, JSON.stringify(sessionMetadata), 'EX', expireSeconds);
-    
-    const downloadUrl = `${req.protocol}://${req.get('host')}/download/${accessCode}`;
-    const qrCodeDataURL = await QRCode.toDataURL(downloadUrl);
-    res.json({
-      accessCode,
-      ownerToken,
-      sessionUrl: `/session/${ownerToken}`
-    });
-  } catch(err) {
-    console.error(err);
-    res.status(500).json({ error: 'Upload failed' });
-  }
-});
-
-
 
 module.exports = router;
+
