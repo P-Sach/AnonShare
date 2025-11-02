@@ -1,13 +1,13 @@
 {
   "/_not-found/page": "/_not-found",
-  "/access/page": "/access",
   "/download/[accessCode]/page": "/download/[accessCode]",
-  "/faq/page": "/faq",
+  "/access/qr/page": "/access/qr",
   "/page": "/",
-  "/share/page": "/share",
   "/expired/page": "/expired",
-  "/locshare/page": "/locshare",
-  "/session/[ownerToken]/page": "/session/[ownerToken]",
+  "/faq/page": "/faq",
   "/text-viewer/page": "/text-viewer",
-  "/access/qr/page": "/access/qr"
+  "/access/page": "/access",
+  "/share/page": "/share",
+  "/session/[ownerToken]/page": "/session/[ownerToken]",
+  "/locshare/page": "/locshare"
 }

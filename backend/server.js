@@ -29,8 +29,25 @@ mongoose.connect(process.env.MONGO_URI)
 redis.on('connect', () => console.log('Redis connected'));
 redis.on('error', err => console.error('Redis error', err));
 // Middleware
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.NEXT_PUBLIC_APP_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+].filter(Boolean);
+
 app.use(cors({
-  origin: 'http://localhost:5173', // your Vite dev server
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -70,4 +87,10 @@ process.on('unhandledRejection', (reason, promise) => {
   // Don't exit - just log it
 });
 
-app.listen(port, () => console.log(`Server listening on port ${port}`));
+// Export for Vercel serverless
+module.exports = app;
+
+// Only listen on port if not in serverless environment
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(port, () => console.log(`Server listening on port ${port}`));
+}
