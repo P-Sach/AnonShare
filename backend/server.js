@@ -10,10 +10,12 @@ const port = process.env.PORT || 3000;
 const cleanupFiles = require('./jobs/cleanup');
 const locshareRouter = require('./routes/locshare');
 const locdownloadRouter = require('./routes/locdownload');
+const localServerRouter = require('./routes/localServer');
 const cors = require('cors');
 const endSessionRouter = require('./routes/endsession');
 const checkSessionRouter = require('./routes/checkSession');
 const sessionInfoRouter = require('./routes/sessionInfo');
+const sessionDataRouter = require('./routes/sessionData');
 // Rate limiter: max 100 requests per 15min
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -40,8 +42,32 @@ setInterval(() => {
   cleanupFiles();
 }, 15 * 60 * 1000);
 app.use('/locshare', locshareRouter);
-app.use('/locfetch', locdownloadRouter);
+app.use('/locdownload', locdownloadRouter);
+app.use('/local-server', localServerRouter);
 app.use('/session-info', sessionInfoRouter);
 app.use('/check-session', checkSessionRouter);
 app.use('/endsession', endSessionRouter);
+app.use('/session-data', sessionDataRouter);
+
+// Global error handler - prevent server crashes
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: err.message 
+  });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // Don't exit - just log it
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit - just log it
+});
+
 app.listen(port, () => console.log(`Server listening on port ${port}`));

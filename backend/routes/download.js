@@ -7,18 +7,24 @@ const redis   = require('../utils/redisClient');
 
 const router = express.Router();
 
-// GET /download/:sessionId
-router.get('/:sessionId', async (req, res) => {
-  const { sessionId } = req.params;
+// GET /download/:accessCode
+router.get('/:accessCode', async (req, res) => {
+  const { accessCode } = req.params;
 
   try {
-    // 1. Look up file ID in Redis
-    const fileId = await redis.get(sessionId);
+    // 1. Resolve access code to session ID
+    const sessionId = await redis.get(`access:${accessCode}`);
+    if (!sessionId) {
+      return res.status(404).json({ error: 'Session expired or not found' });
+    }
+
+    // 2. Look up file ID in Redis using session ID
+    const fileId = await redis.get(`session:${sessionId}`);
     if (!fileId) {
       return res.status(404).json({ error: 'Session expired or not found' });
     }
 
-    // 2. Fetch metadata from MongoDB
+    // 3. Fetch metadata from MongoDB
     const fileDoc = await File.findById(fileId);
     if (!fileDoc) {
       return res.status(404).json({ error: 'File metadata not found' });
@@ -34,7 +40,19 @@ router.get('/:sessionId', async (req, res) => {
       return res.status(403).json({ error: 'Download limit reached' });
     }
 
-    // 3. Build filesystem path
+    // Check if this is text mode
+    if (fileDoc.isText) {
+      // Text mode - return encrypted text as JSON
+      fileDoc.downloadCount += 1;
+      await fileDoc.save();
+      
+      return res.json({
+        encryptedText: fileDoc.encryptedText,
+        hasPassword: !!fileDoc.passwordHash
+      });
+    }
+
+    // 4. Build filesystem path (file mode)
     const filePath = path.join(__dirname, '../uploads', fileDoc.storageName);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found on server' });
@@ -42,7 +60,7 @@ router.get('/:sessionId', async (req, res) => {
 
     
 
-    // 4. Stream file to client
+    // 5. Stream file to client
     res.setHeader('Content-Disposition', `attachment; filename="${fileDoc.originalName}"`);
     res.setHeader('Content-Type', fileDoc.mimeType);
     const readStream = fs.createReadStream(filePath);

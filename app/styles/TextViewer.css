@@ -1,0 +1,417 @@
+.text-viewer-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #000;
+  color: #fff;
+}
+
+.text-viewer-container {
+  flex: 1;
+  padding: 60px 20px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.text-viewer-card {
+  background-color: #111;
+  border-radius: 8px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.text-viewer-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
+  border-radius: 50%;
+  margin-bottom: 20px;
+  color: #000;
+}
+
+.text-viewer-header h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.text-viewer-header p {
+  color: #aaa;
+  font-size: 16px;
+}
+
+/* Password Form */
+.password-form {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.password-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  padding: 15px;
+  background-color: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 6px;
+  margin-bottom: 25px;
+  color: #00ff88;
+}
+
+.password-notice p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #aaa;
+}
+
+.password-input-wrapper {
+  position: relative;
+}
+
+.password-input {
+  width: 100%;
+  padding: 12px 45px 12px 15px;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+}
+
+.password-input:focus {
+  outline: none;
+  border-color: #00ff88;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.3s ease;
+}
+
+.toggle-password:hover {
+  color: #00ff88;
+}
+
+.decrypt-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.3s ease;
+}
+
+.decrypt-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.decrypt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error-message {
+  padding: 12px;
+  background-color: rgba(255, 68, 68, 0.1);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #ff4444;
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+/* Decrypting State */
+.decrypting-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #333;
+  border-top-color: #00ff88;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.decrypting-state p {
+  color: #aaa;
+  font-size: 16px;
+}
+
+/* Decrypted Content */
+.decrypted-content {
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #333;
+}
+
+.content-header h3 {
+  font-size: 20px;
+  margin: 0;
+  color: #00ff88;
+}
+
+.copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #aaa;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.copy-btn:hover {
+  border-color: #00ff88;
+  color: #00ff88;
+  background-color: rgba(0, 255, 136, 0.1);
+}
+
+.text-display {
+  background-color: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 25px;
+  margin-bottom: 25px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.text-display pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #fff;
+}
+
+/* Custom scrollbar */
+.text-display::-webkit-scrollbar {
+  width: 8px;
+}
+
+.text-display::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 4px;
+}
+
+.text-display::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+.text-display::-webkit-scrollbar-thumb:hover {
+  background: #00ff88;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.back-btn {
+  padding: 12px 30px;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #aaa;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  border-color: #00ff88;
+  color: #00ff88;
+}
+
+/* Light Theme */
+body.light .text-viewer-page {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+body.light .text-viewer-card {
+  background-color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+body.light .header-icon {
+  background: linear-gradient(135deg, #00cc66 0%, #00aa55 100%);
+}
+
+body.light .text-viewer-header p {
+  color: #666;
+}
+
+body.light .password-notice {
+  background-color: rgba(0, 204, 102, 0.1);
+  border-color: rgba(0, 204, 102, 0.3);
+  color: #00aa55;
+}
+
+body.light .form-group label {
+  color: #666;
+}
+
+body.light .password-input {
+  background-color: #fafafa;
+  border-color: #ddd;
+  color: #333;
+}
+
+body.light .password-input:focus {
+  border-color: #00cc66;
+}
+
+body.light .toggle-password {
+  color: #999;
+}
+
+body.light .toggle-password:hover {
+  color: #00cc66;
+}
+
+body.light .decrypt-btn {
+  background: linear-gradient(135deg, #00cc66 0%, #00aa55 100%);
+  color: #fff;
+}
+
+body.light .error-message {
+  background-color: rgba(220, 53, 69, 0.1);
+  border-color: rgba(220, 53, 69, 0.3);
+  color: #dc3545;
+}
+
+body.light .spinner {
+  border-color: #ddd;
+  border-top-color: #00cc66;
+}
+
+body.light .decrypting-state p {
+  color: #666;
+}
+
+body.light .content-header {
+  border-bottom-color: #eee;
+}
+
+body.light .content-header h3 {
+  color: #00aa55;
+}
+
+body.light .copy-btn {
+  background-color: #fafafa;
+  border-color: #ddd;
+  color: #666;
+}
+
+body.light .copy-btn:hover {
+  border-color: #00cc66;
+  color: #00cc66;
+  background-color: rgba(0, 204, 102, 0.1);
+}
+
+body.light .text-display {
+  background-color: #fafafa;
+  border-color: #ddd;
+}
+
+body.light .text-display pre {
+  color: #333;
+}
+
+body.light .text-display::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+body.light .text-display::-webkit-scrollbar-thumb {
+  background: #ccc;
+}
+
+body.light .text-display::-webkit-scrollbar-thumb:hover {
+  background: #00cc66;
+}
+
+body.light .back-btn {
+  background-color: #fafafa;
+  border-color: #ddd;
+  color: #666;
+}
+
+body.light .back-btn:hover {
+  border-color: #00cc66;
+  color: #00cc66;
+}
