@@ -1,17 +1,26 @@
 // API Route Handler for Next.js App Router
 import { NextResponse } from 'next/server';
 
-// Import and initialize the Express app
+// Lazy load the Express app only when needed
 let app;
-try {
-  app = require('../../../backend/server');
-} catch (error) {
-  console.error('Failed to load backend server:', error);
+function getApp() {
+  if (!app) {
+    try {
+      // Dynamic require to avoid bundling issues
+      app = require('../../../backend/server');
+    } catch (error) {
+      console.error('Failed to load backend server:', error);
+      throw error;
+    }
+  }
+  return app;
 }
 
 // Convert Next.js request to Express-compatible format
 async function handleRequest(request, context) {
   try {
+    const app = getApp();
+    
     if (!app) {
       return NextResponse.json(
         { error: 'Backend server not initialized' },

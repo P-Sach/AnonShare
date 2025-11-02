@@ -1,13 +1,14 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/download/[accessCode]/page": "app/download/[accessCode]/page.js",
-  "/access/qr/page": "app/access/qr/page.js",
-  "/page": "app/page.js",
-  "/expired/page": "app/expired/page.js",
-  "/faq/page": "app/faq/page.js",
-  "/text-viewer/page": "app/text-viewer/page.js",
   "/access/page": "app/access/page.js",
-  "/share/page": "app/share/page.js",
+  "/access/qr/page": "app/access/qr/page.js",
+  "/download/[accessCode]/page": "app/download/[accessCode]/page.js",
+  "/expired/page": "app/expired/page.js",
+  "/locshare/page": "app/locshare/page.js",
+  "/faq/page": "app/faq/page.js",
+  "/page": "app/page.js",
   "/session/[ownerToken]/page": "app/session/[ownerToken]/page.js",
-  "/locshare/page": "app/locshare/page.js"
+  "/share/page": "app/share/page.js",
+  "/text-viewer/page": "app/text-viewer/page.js",
+  "/api/[...path]/route": "app/api/[...path]/route.js"
 }
