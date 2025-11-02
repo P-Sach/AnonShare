@@ -18,6 +18,18 @@ const nextConfig = {
     domains: ['localhost'],
   },
   
+  // Rewrites for API routes
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: process.env.NODE_ENV === 'production' 
+          ? '/api/:path*'  // In production, handled by serverless function
+          : 'http://localhost:3000/:path*',  // In development, proxy to Express server
+      },
+    ];
+  },
+  
   // Webpack configuration if needed
   webpack: (config) => {
     return config;

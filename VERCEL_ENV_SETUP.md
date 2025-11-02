@@ -7,7 +7,6 @@ Copy and paste these into your Vercel project settings (Settings → Environment
 ### Frontend Configuration
 ```
 NEXT_PUBLIC_API_BASE=/api
-NEXT_PUBLIC_APP_URL=https://your-project.vercel.app
 ```
 
 ### Backend Configuration
@@ -23,13 +22,7 @@ PORT=3000
 
 ## After First Deployment
 
-Once Vercel assigns your URL (e.g., `anonshare-xyz123.vercel.app`), update:
-
-```
-NEXT_PUBLIC_APP_URL=https://anonshare-xyz123.vercel.app
-```
-
-Then click "Redeploy" to apply the changes.
+Once Vercel assigns your URL, no additional updates needed! The API routes will work automatically.
 
 ## Important Notes
 

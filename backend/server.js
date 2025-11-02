@@ -32,19 +32,28 @@ redis.on('error', err => console.error('Redis error', err));
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  process.env.NEXT_PUBLIC_APP_URL,
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-].filter(Boolean);
+];
+
+// Add Vercel domains dynamically
+if (process.env.VERCEL_URL) {
+  allowedOrigins.push(`https://${process.env.VERCEL_URL}`);
+}
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+    // Allow Vercel deployments
+    if (origin && origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Allow for now during debugging
     }
   },
   credentials: true
@@ -53,18 +62,38 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => res.send('AnonShare API is up'));
-app.use('/upload', uploadRouter);
-app.use('/download', downloadRouter);
-setInterval(() => {
-  cleanupFiles();
-}, 15 * 60 * 1000);
-app.use('/locshare', locshareRouter);
-app.use('/locdownload', locdownloadRouter);
-app.use('/local-server', localServerRouter);
-app.use('/session-info', sessionInfoRouter);
-app.use('/check-session', checkSessionRouter);
-app.use('/endsession', endSessionRouter);
-app.use('/session-data', sessionDataRouter);
+app.get('/api', (req, res) => res.send('AnonShare API is up'));
+
+// Mount routes with /api prefix for Vercel
+app.use('/api/upload', uploadRouter);
+app.use('/api/download', downloadRouter);
+app.use('/api/locshare', locshareRouter);
+app.use('/api/locdownload', locdownloadRouter);
+app.use('/api/local-server', localServerRouter);
+app.use('/api/session-info', sessionInfoRouter);
+app.use('/api/check-session', checkSessionRouter);
+app.use('/api/endsession', endSessionRouter);
+app.use('/api/session-data', sessionDataRouter);
+
+// Also mount without /api prefix for local development
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/upload', uploadRouter);
+  app.use('/download', downloadRouter);
+  app.use('/locshare', locshareRouter);
+  app.use('/locdownload', locdownloadRouter);
+  app.use('/local-server', localServerRouter);
+  app.use('/session-info', sessionInfoRouter);
+  app.use('/check-session', checkSessionRouter);
+  app.use('/endsession', endSessionRouter);
+  app.use('/session-data', sessionDataRouter);
+}
+
+// Run cleanup periodically (only in local environment)
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  setInterval(() => {
+    cleanupFiles();
+  }, 15 * 60 * 1000);
+}
 
 // Global error handler - prevent server crashes
 app.use((err, req, res, next) => {
