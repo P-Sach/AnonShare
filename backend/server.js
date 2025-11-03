@@ -25,11 +25,15 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
+// Disable Mongoose buffering for serverless - fail fast instead of buffering
+mongoose.set('bufferCommands', false);
+mongoose.set('bufferTimeoutMS', 30000);
+
 // DB connections - use cached connections for serverless
 let isConnected = false;
 
 async function connectDB() {
-  if (isConnected) {
+  if (isConnected && mongoose.connection.readyState === 1) {
     return;
   }
 
@@ -39,19 +43,24 @@ async function connectDB() {
     }
 
     await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
     });
     
     isConnected = true;
     console.log('MongoDB connected');
   } catch (err) {
     console.error('MongoDB connection error:', err);
-    // Don't throw - allow app to start even if DB fails initially
+    isConnected = false;
+    throw err; // Throw so we can handle it in middleware
   }
 }
 
 // Connect on startup (but don't block)
-connectDB();
+connectDB().catch(err => {
+  console.error('Initial DB connection failed:', err.message);
+});
 
 // Redis connection - handle errors gracefully
 redis.on('connect', () => console.log('Redis connected'));
@@ -62,10 +71,18 @@ redis.on('error', err => {
 
 // Middleware to ensure DB connection before handling requests
 app.use(async (req, res, next) => {
-  if (!isConnected) {
-    await connectDB();
+  try {
+    if (!isConnected || mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
+    next();
+  } catch (err) {
+    console.error('Database connection failed:', err);
+    res.status(503).json({ 
+      error: 'Database unavailable', 
+      message: 'Unable to connect to database. Please try again.' 
+    });
   }
-  next();
 });
 
 // Middleware
