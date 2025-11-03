@@ -51,6 +51,32 @@ export default function LocSharePage() {
     return () => clearInterval(interval)
   }, [router])
 
+  // Define handleStopSharing early so it can be used in useEffect hooks below
+  const handleStopSharing = useCallback(async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
+    setIsSharing(false);
+    setShareKey("");
+    setDownloadCount(0);
+    setDownloadLimitReached(false);
+    setSessionEndTime(null);
+    setTimeRemaining(null);
+    
+    try {
+      if (activePort) {
+        await stopLocalServer(activePort);
+        setActivePort(null);
+      }
+    } catch (error) {
+      console.error("Failed to stop server:", error);
+      // Don't show error to user - just log it
+      // UI already shows as stopped
+    }
+  }, [activePort]);
+
   // Get local IP address on component mount
   useEffect(() => {
     const fetchLocalIP = async () => {
@@ -297,31 +323,6 @@ export default function LocSharePage() {
         console.error("Failed to copy key:", err)
       })
   }
-
-  const handleStopSharing = useCallback(async (e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    setIsSharing(false);
-    setShareKey("");
-    setDownloadCount(0);
-    setDownloadLimitReached(false);
-    setSessionEndTime(null);
-    setTimeRemaining(null);
-    
-    try {
-      if (activePort) {
-        await stopLocalServer(activePort);
-        setActivePort(null);
-      }
-    } catch (error) {
-      console.error("Failed to stop server:", error);
-      // Don't show error to user - just log it
-      // UI already shows as stopped
-    }
-  }, [activePort]);
 
   const handleCopyLink = () => {
     const link = `http://${localIp}:5173/access/qr?key=${encodeURIComponent(shareKey)}`;
