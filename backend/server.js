@@ -79,22 +79,33 @@ if (process.env.VERCEL_URL) {
   allowedOrigins.push(`https://${process.env.VERCEL_URL}`);
 }
 
-// Allow any .vercel.app domain
+// CORS configuration - be permissive for Vercel deployments
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
-    // Allow all Vercel deployments
-    if (origin && (origin.endsWith('.vercel.app') || allowedOrigins.includes(origin))) {
+    // Allow all Vercel deployments and localhost
+    if (origin && (
+      origin.endsWith('.vercel.app') || 
+      allowedOrigins.includes(origin) ||
+      origin.includes('localhost')
+    )) {
       return callback(null, true);
     }
     
     console.log('CORS blocked origin:', origin);
     callback(null, true); // Allow for now, restrict in production
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Disposition']
 }));
+
+// Handle preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
