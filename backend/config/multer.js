@@ -21,4 +21,12 @@ const storage = multer.diskStorage({
   }
 });
 
-module.exports = multer({ storage });
+// File size limit for Vercel serverless (4MB)
+const fileSizeLimit = process.env.VERCEL ? 4 * 1024 * 1024 : 100 * 1024 * 1024; // 4MB on Vercel, 100MB locally
+
+module.exports = multer({ 
+  storage,
+  limits: {
+    fileSize: fileSizeLimit
+  }
+});

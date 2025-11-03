@@ -43,7 +43,13 @@ export const uploadAnonFile = async (file, expireSeconds = 3600, password = '', 
     } else {
       const text = await res.text();
       console.log('[Upload] Error text:', text.substring(0, 500)); // Log first 500 chars
-      errorMessage = text || `Server returned ${res.status}`;
+      
+      // Check for specific Vercel errors
+      if (text.includes('FUNCTION_PAYLOAD_TOO_LARGE') || text.includes('Request Entity Too Large')) {
+        errorMessage = 'File too large! The maximum file size for uploads is 4MB. Please try a smaller file or use LocShare for larger files on the same network.';
+      } else {
+        errorMessage = text || `Server returned ${res.status}`;
+      }
     }
     
     throw new Error(errorMessage);

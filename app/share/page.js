@@ -45,6 +45,16 @@ export default function SharePage() {
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
       const fileArray = Array.from(e.target.files)
+      
+      // Check file size (4MB limit for Vercel serverless)
+      const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB in bytes
+      const oversizedFiles = fileArray.filter(file => file.size > MAX_FILE_SIZE);
+      
+      if (oversizedFiles.length > 0) {
+        alert(`File size limit exceeded! Maximum file size is 4MB.\n\nOversized file: ${oversizedFiles[0].name} (${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB)`);
+        return;
+      }
+      
       setFiles(fileArray)
     }
   }
@@ -68,6 +78,16 @@ export default function SharePage() {
 
     if (e.dataTransfer.files.length > 0) {
       const fileArray = Array.from(e.dataTransfer.files)
+      
+      // Check file size (4MB limit for Vercel serverless)
+      const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB in bytes
+      const oversizedFiles = fileArray.filter(file => file.size > MAX_FILE_SIZE);
+      
+      if (oversizedFiles.length > 0) {
+        alert(`File size limit exceeded! Maximum file size is 4MB.\n\nOversized file: ${oversizedFiles[0].name} (${(oversizedFiles[0].size / 1024 / 1024).toFixed(2)}MB)`);
+        return;
+      }
+      
       setFiles(fileArray)
     }
   }
@@ -92,6 +112,12 @@ export default function SharePage() {
       let res;
       
       if (shareMode === "file") {
+        // Double-check file size before upload
+        const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+        if (files[0].size > MAX_FILE_SIZE) {
+          throw new Error(`File too large! Maximum size is 4MB. Your file is ${(files[0].size / 1024 / 1024).toFixed(2)}MB`);
+        }
+        
         // File upload mode
         res = await uploadAnonFile(
           files[0],
@@ -151,6 +177,17 @@ export default function SharePage() {
           <div className="share-header">
             <h1>Share Files Securely</h1>
             <p>Files are available for a limited time only. No accounts needed.</p>
+            <div className="info-banner" style={{
+              background: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              marginTop: '12px',
+              fontSize: '14px',
+              color: '#60a5fa'
+            }}>
+              ℹ️ File size limit: 4MB per file. For larger files on the same network, use <a href="/locshare" style={{color: '#3b82f6', textDecoration: 'underline'}}>LocShare</a>.
+            </div>
           </div>
 
           <form onSubmit={handleGenerateLink}>
@@ -207,7 +244,7 @@ export default function SharePage() {
                 >
                   <Upload size={48} className="upload-icon" />
                   <p>Drag & drop files here or click to browse</p>
-                  <span className="file-types">Supports all file types up to 2GB</span>
+                  <span className="file-types">Supports all file types up to 4MB (Vercel limit)</span>
                 </div>
               )}
             </div>

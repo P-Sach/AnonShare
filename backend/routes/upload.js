@@ -32,6 +32,15 @@ router.post('/', (req, res, next) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
       console.error('[Upload] Multer error:', err);
+      
+      // Check if it's a file size error
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ 
+          error: 'File too large', 
+          message: 'Maximum file size is 4MB on Vercel. Please use a smaller file or try LocShare for larger files on the same network.' 
+        });
+      }
+      
       return res.status(400).json({ 
         error: 'File upload error', 
         message: err.message 
