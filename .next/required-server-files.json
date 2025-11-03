@@ -2,8 +2,9 @@
   "version": 1,
   "config": {
     "env": {
-      "NEXT_PUBLIC_API_BASE": "/api"
+      "NEXT_PUBLIC_API_BASE": "http://localhost:3000"
     },
+    "webpack": null,
     "eslint": {
       "ignoreDuringBuilds": false
     },
@@ -292,16 +293,6 @@
     "configFileName": "next.config.mjs",
     "turbopack": {
       "root": "D:\\Work\\AnonShare"
-    },
-    "_originalRewrites": {
-      "beforeFiles": [],
-      "afterFiles": [
-        {
-          "source": "/api/:path*",
-          "destination": "/api/:path*"
-        }
-      ],
-      "fallback": []
     }
   },
   "appDir": "D:\\Work\\AnonShare",

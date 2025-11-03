@@ -39,22 +39,19 @@ if (process.env.VERCEL_URL) {
   allowedOrigins.push(`https://${process.env.VERCEL_URL}`);
 }
 
+// Allow any .vercel.app domain
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
     
-    // Allow Vercel deployments
-    if (origin && origin.endsWith('.vercel.app')) {
+    // Allow all Vercel deployments
+    if (origin && (origin.endsWith('.vercel.app') || allowedOrigins.includes(origin))) {
       return callback(null, true);
     }
     
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(null, true); // Allow for now during debugging
-    }
+    console.log('CORS blocked origin:', origin);
+    callback(null, true); // Allow for now, restrict in production
   },
   credentials: true
 }));
@@ -119,7 +116,7 @@ process.on('unhandledRejection', (reason, promise) => {
 // Export for Vercel serverless
 module.exports = app;
 
-// Only listen on port if not in serverless environment
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+// Only listen on port if not in Vercel (for local development)
+if (!process.env.VERCEL && require.main === module) {
   app.listen(port, () => console.log(`Server listening on port ${port}`));
 }

@@ -15,24 +15,10 @@
   "headers": [],
   "rewrites": {
     "beforeFiles": [],
-    "afterFiles": [
-      {
-        "source": "/api/:path*",
-        "destination": "/api/:path*",
-        "regex": "^/api(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
-      }
-    ],
+    "afterFiles": [],
     "fallback": []
   },
   "dynamicRoutes": [
-    {
-      "page": "/api/[...path]",
-      "regex": "^/api/(.+?)(?:/)?$",
-      "routeKeys": {
-        "nxtPpath": "nxtPpath"
-      },
-      "namedRegex": "^/api/(?<nxtPpath>.+?)(?:/)?$"
-    },
     {
       "page": "/download/[accessCode]",
       "regex": "^/download/([^/]+?)(?:/)?$",
