@@ -216,6 +216,7 @@ export default function DownloadPage() {
         sessionStorage.setItem('encrypted-text', data.encryptedText);
         sessionStorage.setItem('text-has-password', data.hasPassword ? 'true' : 'false');
         sessionStorage.setItem('text-password', password || '');
+        sessionStorage.setItem('text-access-code', accessCode);
         router.push('/text-viewer');
       } catch (error) {
         console.error("Error fetching text:", error);
@@ -227,22 +228,29 @@ export default function DownloadPage() {
       // File download
       setIsDownloading(true);
       try {
-        downloadFile(accessCode, password);
+        await downloadFile(accessCode, password);
         
-        // Since we can't track progress with window.location.href,
-        // we'll assume download completes after a short delay
+        // Download initiated successfully
         setTimeout(() => {
           setIsDownloading(false);
-        }, 5000); // Adjust this timeout as needed
+        }, 2000);
       } catch (error) {
         setIsDownloading(false);
         console.error("Download failed:", error);
+        alert("Download failed. Please try again.");
       }
     }
   };
 
-  const handleDownloadAll = () => {
-    if (accessCode) downloadFile(accessCode, password);
+  const handleDownloadAll = async () => {
+    if (accessCode) {
+      try {
+        await downloadFile(accessCode, password);
+      } catch (error) {
+        console.error("Download failed:", error);
+        alert("Download failed. Please try again.");
+      }
+    }
   };
 
   if (timeRemaining === 0) {

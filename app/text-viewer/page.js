@@ -18,6 +18,7 @@ export default function TextViewerPage() {
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+  const [returnUrl, setReturnUrl] = useState("/access")
 
   const handleDecrypt = useCallback(async (encrypted, pwd) => {
     setIsDecrypting(true)
@@ -39,6 +40,7 @@ export default function TextViewerPage() {
     const encrypted = sessionStorage.getItem('encrypted-text')
     const hasPwd = sessionStorage.getItem('text-has-password') === 'true'
     const pwd = sessionStorage.getItem('text-password') || ''
+    const accessCode = sessionStorage.getItem('text-access-code') || ''
 
     if (!encrypted) {
       router.push('/access')
@@ -48,6 +50,11 @@ export default function TextViewerPage() {
     setEncryptedText(encrypted)
     setHasPassword(hasPwd)
     setPassword(pwd)
+    
+    // Set return URL to the download page if we have an access code
+    if (accessCode) {
+      setReturnUrl(`/download/${accessCode}`)
+    }
 
     // Auto-decrypt if no password required or password already provided
     if (!hasPwd || pwd) {
@@ -164,7 +171,7 @@ export default function TextViewerPage() {
               <div className="actions">
                 <button
                   className="back-btn"
-                  onClick={() => router.push('/access')}
+                  onClick={() => router.push(returnUrl)}
                 >
                   Back to Access
                 </button>

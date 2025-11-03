@@ -43,9 +43,47 @@ export const fetchSessionInfo = async (sessionId, password = '') => {
   return res.json(); // returns metadata
 };
 
-export const downloadFile = (sessionId, password = '') => {
-  const query = password ? `?password=${encodeURIComponent(password)}` : '';
-  window.location.href = `${API_BASE}/download/${sessionId}${query}`;
+export const downloadFile = async (sessionId, password = '') => {
+  try {
+    const query = password ? `?password=${encodeURIComponent(password)}` : '';
+    const downloadUrl = `${API_BASE}/download/${sessionId}${query}`;
+    
+    // Fetch the file as blob
+    const response = await fetch(downloadUrl, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Download failed');
+    }
+    
+    // Get filename from Content-Disposition header if available
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = 'download';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/);
+      if (filenameMatch) {
+        filename = filenameMatch[1];
+      }
+    }
+    
+    // Create blob and download
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Download error:', error);
+    // Fallback to direct navigation if fetch fails
+    const query = password ? `?password=${encodeURIComponent(password)}` : '';
+    window.location.href = `${API_BASE}/download/${sessionId}${query}`;
+  }
 };
 
 
