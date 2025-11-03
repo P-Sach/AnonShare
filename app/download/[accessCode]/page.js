@@ -8,6 +8,7 @@ import { Clock, Download, File, FileText, ImageIcon, Film, Archive, Shield, Lock
 import "../../styles/DownloadPage.css"
 import { fetchSessionInfo, downloadFile } from "../../utils/api"
 import { useParams, useRouter } from 'next/navigation';
+import { API_BASE } from '../../config';
 
 export default function DownloadPage() {
   const [timeRemaining, setTimeRemaining] = useState(3600) // 1 hour in seconds
@@ -200,7 +201,6 @@ export default function DownloadPage() {
       setIsDownloading(true);
       try {
         // Fetch encrypted text from backend
-        const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3000';
         const response = await fetch(`${API_BASE}/download/${accessCode}?password=${encodeURIComponent(password || '')}`);
         
         if (!response.ok) {
