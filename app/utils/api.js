@@ -12,10 +12,42 @@ export const uploadAnonFile = async (file, expireSeconds = 3600, password = '', 
   if (password) form.append('password', password);
   if (maxDownloads) form.append('maxDownloads', maxDownloads);
 
+  console.log('[Upload] Sending request to:', `${API_BASE}/upload`);
+  console.log('[Upload] API_BASE:', API_BASE);
+  console.log('[Upload] Form data:', {
+    hasFile: !!file,
+    hasEncryptedText: !!encryptedText,
+    expireSeconds,
+    hasPassword: !!password,
+    maxDownloads
+  });
+
   const res = await fetch(`${API_BASE}/upload`, {
     method: 'POST',
     body: form,
   });
+
+  console.log('[Upload] Response status:', res.status);
+  console.log('[Upload] Response headers:', Object.fromEntries(res.headers.entries()));
+
+  if (!res.ok) {
+    const contentType = res.headers.get('content-type');
+    let errorMessage = 'Upload failed';
+    
+    console.log('[Upload] Error response content-type:', contentType);
+    
+    if (contentType && contentType.includes('application/json')) {
+      const errorData = await res.json();
+      console.log('[Upload] Error data:', errorData);
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } else {
+      const text = await res.text();
+      console.log('[Upload] Error text:', text.substring(0, 500)); // Log first 500 chars
+      errorMessage = text || `Server returned ${res.status}`;
+    }
+    
+    throw new Error(errorMessage);
+  }
 
   return res.json();
 };

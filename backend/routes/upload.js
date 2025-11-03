@@ -28,8 +28,25 @@ function generateOwnerToken(length = 24) {
     .substring(0, length);
 }
 // expects multipart‑form with field "file" and "expireSeconds"
-router.post('/', upload.single('file'), async (req, res) => {
+router.post('/', (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('[Upload] Multer error:', err);
+      return res.status(400).json({ 
+        error: 'File upload error', 
+        message: err.message 
+      });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
+    console.log('[Upload] Request received:', {
+      hasFile: !!req.file,
+      hasEncryptedText: !!req.body.encryptedText,
+      expireSeconds: req.body.expireSeconds
+    });
+
     const { file } = req;
     const { encryptedText } = req.body;
     const expireSeconds = parseInt(req.body.expireSeconds, 10) || 3600;
@@ -44,6 +61,7 @@ router.post('/', upload.single('file'), async (req, res) => {
 
     // Either file or encrypted text must be provided
     if (!file && !encryptedText) {
+      console.log('[Upload] Error: No file or text provided');
       return res.status(400).json({ error: 'No file or text provided' });
     }
 
@@ -51,6 +69,7 @@ router.post('/', upload.single('file'), async (req, res) => {
     
     if (file) {
       // File upload mode
+      console.log('[Upload] Creating file document in MongoDB');
       doc = await File.create({
         originalName: file.originalname,
         storageName:  file.filename,
@@ -61,8 +80,10 @@ router.post('/', upload.single('file'), async (req, res) => {
         maxDownloads,
         isText: false
       });
+      console.log('[Upload] File document created:', doc._id);
     } else {
       // Text mode - store encrypted text
+      console.log('[Upload] Creating text document in MongoDB');
       doc = await File.create({
         originalName: 'encrypted-message.txt',
         storageName:  null, // No file stored
@@ -74,6 +95,7 @@ router.post('/', upload.single('file'), async (req, res) => {
         isText: true,
         encryptedText: encryptedText // Store encrypted text in DB
       });
+      console.log('[Upload] Text document created:', doc._id);
     }
 
     // generate internal session ID, public access code, and owner token
@@ -120,8 +142,18 @@ router.post('/', upload.single('file'), async (req, res) => {
       sessionUrl: `/session/${ownerToken}`
     });
   } catch(err) {
-    console.error('Upload error:', err);
-    res.status(500).json({ error: 'Upload failed', message: err.message });
+    console.error('[Upload] Error details:', {
+      message: err.message,
+      stack: err.stack,
+      name: err.name
+    });
+    
+    // Send detailed error for debugging
+    res.status(500).json({ 
+      error: 'Upload failed', 
+      message: err.message,
+      details: process.env.NODE_ENV === 'production' ? undefined : err.stack
+    });
   }
 });
 
