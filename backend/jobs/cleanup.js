@@ -19,7 +19,6 @@ async function cleanupFiles() {
     const liveFiles = new Set(fileDocs.map(doc => doc.storageName));
 
     // check for orphaned files
-    const UPLOAD_DIR = getUploadDir();
     for (const file of allFiles) {
       if (!liveFiles.has(file)) {
         const filePath = path.join(UPLOAD_DIR, file);
