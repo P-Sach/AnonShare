@@ -96,7 +96,7 @@ router.post('/', upload.single('file'), async (req, res) => {
       ownerToken,
       sessionId,
       fileId: doc._id.toString(),
-      downloadUrl: `/access/${accessCode}`,
+      downloadUrl: `/download/${accessCode}`,
       expiresAt: expireAt.toISOString(),
       createdAt: new Date().toISOString(),
       maxDownloads: maxDownloads,
@@ -109,7 +109,7 @@ router.post('/', upload.single('file'), async (req, res) => {
     
     // Use frontend URL for QR code and download links
     const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-    const downloadUrl = `${frontendUrl}/access/${accessCode}`;
+    const downloadUrl = `${frontendUrl}/download/${accessCode}`;
     const qrCodeDataURL = await QRCode.toDataURL(downloadUrl);
     
     console.log('Upload successful:', { accessCode, ownerToken, sessionUrl: `/session/${ownerToken}` });
