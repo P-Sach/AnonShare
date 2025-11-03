@@ -16,18 +16,58 @@ const endSessionRouter = require('./routes/endsession');
 const checkSessionRouter = require('./routes/checkSession');
 const sessionInfoRouter = require('./routes/sessionInfo');
 const sessionDataRouter = require('./routes/sessionData');
+
 // Rate limiter: max 100 requests per 15min
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
 });
-app.use(limiter);// DB connections
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB error', err));
 
+app.use(limiter);
+
+// DB connections - use cached connections for serverless
+let isConnected = false;
+
+async function connectDB() {
+  if (isConnected) {
+    return;
+  }
+
+  try {
+    if (!process.env.MONGO_URI) {
+      throw new Error('MONGO_URI is not defined');
+    }
+
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
+    
+    isConnected = true;
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    // Don't throw - allow app to start even if DB fails initially
+  }
+}
+
+// Connect on startup (but don't block)
+connectDB();
+
+// Redis connection - handle errors gracefully
 redis.on('connect', () => console.log('Redis connected'));
-redis.on('error', err => console.error('Redis error', err));
+redis.on('error', err => {
+  console.error('Redis error:', err);
+  // Don't crash the app
+});
+
+// Middleware to ensure DB connection before handling requests
+app.use(async (req, res, next) => {
+  if (!isConnected) {
+    await connectDB();
+  }
+  next();
+});
+
 // Middleware
 const allowedOrigins = [
   'http://localhost:5173',
@@ -61,29 +101,16 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/', (req, res) => res.send('AnonShare API is up'));
 app.get('/api', (req, res) => res.send('AnonShare API is up'));
 
-// Mount routes with /api prefix for Vercel
-app.use('/api/upload', uploadRouter);
-app.use('/api/download', downloadRouter);
-app.use('/api/locshare', locshareRouter);
-app.use('/api/locdownload', locdownloadRouter);
-app.use('/api/local-server', localServerRouter);
-app.use('/api/session-info', sessionInfoRouter);
-app.use('/api/check-session', checkSessionRouter);
-app.use('/api/endsession', endSessionRouter);
-app.use('/api/session-data', sessionDataRouter);
-
-// Also mount without /api prefix for local development
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/upload', uploadRouter);
-  app.use('/download', downloadRouter);
-  app.use('/locshare', locshareRouter);
-  app.use('/locdownload', locdownloadRouter);
-  app.use('/local-server', localServerRouter);
-  app.use('/session-info', sessionInfoRouter);
-  app.use('/check-session', checkSessionRouter);
-  app.use('/endsession', endSessionRouter);
-  app.use('/session-data', sessionDataRouter);
-}
+// Mount routes - Vercel will route everything here, so no /api prefix needed
+app.use('/upload', uploadRouter);
+app.use('/download', downloadRouter);
+app.use('/locshare', locshareRouter);
+app.use('/locdownload', locdownloadRouter);
+app.use('/local-server', localServerRouter);
+app.use('/session-info', sessionInfoRouter);
+app.use('/check-session', checkSessionRouter);
+app.use('/endsession', endSessionRouter);
+app.use('/session-data', sessionDataRouter);
 
 // Run cleanup periodically (only in local environment)
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
