@@ -41,14 +41,16 @@ router.get('/:ownerToken', async (req, res) => {
       }
     }
     
-    // Generate QR code for the download URL
-    const downloadUrl = `${req.protocol}://${req.get('host')}${metadata.downloadUrl}`;
+    // Generate QR code for the download URL using frontend URL
+    const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    const accessCode = metadata.accessCode || metadata.downloadUrl.split('/').pop();
+    const downloadUrl = `${frontendUrl}/access/${accessCode}`;
     const qrCodeDataURL = await QRCode.toDataURL(downloadUrl);
     
     // Return complete session data with live download count
     res.json({
       ...metadata,
-      downloadUrl: metadata.downloadUrl,
+      downloadUrl: `/access/${accessCode}`,
       qrCode: qrCodeDataURL,
       downloads: currentDownloadCount,
       maxDownloads: maxDownloads,

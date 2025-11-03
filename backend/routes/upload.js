@@ -96,7 +96,7 @@ router.post('/', upload.single('file'), async (req, res) => {
       ownerToken,
       sessionId,
       fileId: doc._id.toString(),
-      downloadUrl: `/download/${accessCode}`,
+      downloadUrl: `/access/${accessCode}`,
       expiresAt: expireAt.toISOString(),
       createdAt: new Date().toISOString(),
       maxDownloads: maxDownloads,
@@ -107,7 +107,9 @@ router.post('/', upload.single('file'), async (req, res) => {
     };
     await redis.set(`metadata:${ownerToken}`, JSON.stringify(sessionMetadata), 'EX', expireSeconds);
     
-    const downloadUrl = `${req.protocol}://${req.get('host')}/download/${accessCode}`;
+    // Use frontend URL for QR code and download links
+    const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+    const downloadUrl = `${frontendUrl}/access/${accessCode}`;
     const qrCodeDataURL = await QRCode.toDataURL(downloadUrl);
     
     console.log('Upload successful:', { accessCode, ownerToken, sessionUrl: `/session/${ownerToken}` });
