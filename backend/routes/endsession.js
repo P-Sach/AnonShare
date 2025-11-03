@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const File = require('../models/File');
 const redis = require('../utils/redisClient');
+const getUploadDir = require('../utils/uploadPath');
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ router.post('/', async (req, res) => {
     if (fileDoc) {
       // Only delete physical file if it exists (file mode, not text mode)
       if (fileDoc.storageName) {
-        const filePath = path.join(__dirname, '../uploads', fileDoc.storageName);
+        const filePath = path.join(getUploadDir(), fileDoc.storageName);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }

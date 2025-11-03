@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const File = require('../models/File');
 const bcrypt = require('bcrypt');
+const getUploadDir = require('../utils/uploadPath');
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ router.get('/:accessKey', async (req, res) => {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    const filePath = path.join(__dirname, '../uploads', fileDoc.storageName);
+    const filePath = path.join(getUploadDir(), fileDoc.storageName);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not on server' });
     }

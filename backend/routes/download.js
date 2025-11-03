@@ -4,6 +4,7 @@ const fs      = require('fs');
 const bcrypt  = require('bcrypt');
 const File    = require('../models/File');
 const redis   = require('../utils/redisClient');
+const getUploadDir = require('../utils/uploadPath');
 
 const router = express.Router();
 
@@ -53,7 +54,7 @@ router.get('/:accessCode', async (req, res) => {
     }
 
     // 4. Build filesystem path (file mode)
-    const filePath = path.join(__dirname, '../uploads', fileDoc.storageName);
+    const filePath = path.join(getUploadDir(), fileDoc.storageName);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found on server' });
     }

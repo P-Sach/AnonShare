@@ -3,12 +3,13 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const os = require('os');
+const getUploadDir = require('../utils/uploadPath');
 const { createLocalServer, stopLocalServer, getActiveServers, getServerStats } = require('../services/localServer');
 
 // Configure multer for temporary storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../uploads'));
+    cb(null, getUploadDir());
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

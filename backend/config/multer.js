@@ -1,10 +1,15 @@
 const multer  = require('multer');
 const path    = require('path');
 const fs      = require('fs');
+const getUploadDir = require('../utils/uploadPath');
 
-// ensure uploads folder exists
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+// Get upload directory (handles serverless vs local)
+const uploadDir = getUploadDir();
+
+// Ensure uploads folder exists
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // disk storage config
 const storage = multer.diskStorage({
