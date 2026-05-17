@@ -11,14 +11,18 @@ router.post('/', async (req, res) => {
   const { ownerToken } = req.body;
 
   try {
-    // Resolve owner token to session ID
-    const sessionId = await redis.get(`owner:${ownerToken}`);
+    // Prefer metadata to avoid Redis key scans
+    const metadataJson = await redis.get(`metadata:${ownerToken}`);
+    const metadata = metadataJson ? JSON.parse(metadataJson) : null;
+
+    // Resolve owner token to session ID (fallback to metadata)
+    const sessionId = (await redis.get(`owner:${ownerToken}`)) || metadata?.sessionId;
     if (!sessionId) {
       return res.status(404).json({ error: 'Session not found or unauthorized' });
     }
-    
-    // Get file ID from session
-    const fileId = await redis.get(`session:${sessionId}`);
+
+    // Get file ID from session (fallback to metadata)
+    const fileId = (await redis.get(`session:${sessionId}`)) || metadata?.fileId;
     if (!fileId) {
       return res.status(404).json({ error: 'Session not found' });
     }
@@ -37,16 +41,10 @@ router.post('/', async (req, res) => {
       await fileDoc.deleteOne();
     }
 
-    // Find and delete the access code
-    const keys = await redis.keys(`access:*`);
-    let accessCode = null;
-    for (const key of keys) {
-      const sid = await redis.get(key);
-      if (sid === sessionId) {
-        accessCode = key.replace('access:', '');
-        await redis.del(key);
-        break;
-      }
+    // Delete the access code directly if known
+    const accessCode = metadata?.accessCode;
+    if (accessCode) {
+      await redis.del(`access:${accessCode}`);
     }
 
     // Clean up all Redis keys
