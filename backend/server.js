@@ -37,11 +37,10 @@ const uploadLimiter = rateLimit({
 mongoose.set('bufferCommands', false);
 mongoose.set('bufferTimeoutMS', 30000);
 
-// DB connections - use cached connections for serverless
-let isConnected = false;
-
 async function connectDB() {
-  if (isConnected && mongoose.connection.readyState === 1) {
+  if (mongoose.connection.readyState === 1) return;
+  if (mongoose.connection.readyState === 2) {
+    await mongoose.connection.asPromise();
     return;
   }
 
@@ -56,11 +55,9 @@ async function connectDB() {
       maxPoolSize: 10,
     });
     
-    isConnected = true;
     console.log('MongoDB connected');
   } catch (err) {
     console.error('MongoDB connection error:', err);
-    isConnected = false;
     throw err; // Throw so we can handle it in middleware
   }
 }
@@ -80,9 +77,7 @@ redis.on('error', err => {
 // Middleware to ensure DB connection before handling requests
 app.use(async (req, res, next) => {
   try {
-    if (!isConnected || mongoose.connection.readyState !== 1) {
-      await connectDB();
-    }
+    await connectDB();
     next();
   } catch (err) {
     console.error('Database connection failed:', err);
