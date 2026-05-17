@@ -1,8 +1,0 @@
-{
-  "/share/page": "app/share/page.js",
-  "/download/[accessCode]/page": "app/download/[accessCode]/page.js",
-  "/expired/page": "app/expired/page.js",
-  "/access/page": "app/access/page.js",
-  "/text-viewer/page": "app/text-viewer/page.js",
-  "/access/qr/page": "app/access/qr/page.js"
-}
