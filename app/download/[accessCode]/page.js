@@ -1,392 +1,346 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import Link from "next/link"
-import Header from "../../components/Header"
-import Footer from "../../components/Footer"
-import { Clock, Download, File, FileText, ImageIcon, Film, Archive, Shield, Lock } from "lucide-react"
-import "../../styles/DownloadPage.css"
-import { fetchSessionInfo, downloadFile } from "../../utils/api"
-import { useParams, useRouter } from 'next/navigation';
-import { API_BASE } from '../../config';
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import CryptoJS from "crypto-js";
+import {
+  AlertCircle,
+  Check,
+  Clock,
+  Eye,
+  EyeOff,
+  Flame,
+  Lock,
+  Shield,
+} from "lucide-react";
+import { API_BASE } from "../../config";
+
+function formatBytes(bytes) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function humanExpiry(expiresAt) {
+  const diff = Math.max(0, new Date(expiresAt) - Date.now());
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
 
 export default function DownloadPage() {
-  const [timeRemaining, setTimeRemaining] = useState(3600) // 1 hour in seconds
-  const [password, setPassword] = useState("")
-  const [isProtected, setIsProtected] = useState(false)
-  const [isUnlocked, setIsUnlocked] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [fileMeta, setFileMeta] = useState(null)
-  const [isDownloading, setIsDownloading] = useState(false); // Track download state
-  const [passwordError, setPasswordError] = useState(""); // Track password errors
-  const params = useParams();
-  const accessCode = params.accessCode;
-  const router = useRouter();
-  const timerRef = useRef(null);
-  const sessionCheckRef = useRef(null);
+  const { accessCode } = useParams();
 
-  // Protect this page - only accessible in dark theme (AnonShare)
-  useEffect(() => {
-    const theme = localStorage.getItem("theme") || "dark"
-    if (theme === "light") {
-      router.push("/")
-    }
+  const [info, setInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [expired, setExpired] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
 
-    const handleThemeChange = () => {
-      const newTheme = localStorage.getItem("theme") || "dark"
-      if (newTheme === "light") {
-        router.push("/")
-      }
-    }
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [verifying, setVerifying] = useState(false);
 
-    const interval = setInterval(handleThemeChange, 100)
-    return () => clearInterval(interval)
-  }, [router])
+  const [downloading, setDownloading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [dlError, setDlError] = useState("");
 
+  const [decryptedText, setDecryptedText] = useState("");
+  const [textCopied, setTextCopied] = useState(false);
 
   useEffect(() => {
-  
-    if (!accessCode) {
-      alert("Invalid download session");
-      return;
-    }
-
-    if (timerRef.current){
-      clearInterval(timerRef.current);
-    }
-  
-    fetchSessionInfo(accessCode)
-      .then((data) => {
-        // Check if download limit has been reached
-        if (data.downloadLimitReached) {
-          router.push('/expired?reason=download-limit');
+    const fetchInfo = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/session-info/${accessCode}`);
+        if (res.status === 404 || res.status === 410) {
+          setExpired(true);
+          setLoading(false);
           return;
         }
+        if (!res.ok) throw new Error("Session not found");
+        const data = await res.json();
+        setInfo(data);
+        if (!data.passwordProtected) setUnlocked(true);
+      } catch {
+        setExpired(true);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        setIsProtected(data.passwordProtected);
-        
-        // Only set file metadata if it's included in response
-        // (i.e., not password-protected or password already verified)
-        if (data.name) {
-          setFileMeta({
-            name: data.name,
-            size: data.size,
-            mimeType: data.mimeType,
-            isText: data.isText || false
-          });
-        }
-  
-        const expiry = new Date(data.expiresAt).getTime();
-        const now = Date.now();
-        const secondsLeft = Math.floor((expiry - now) / 1000);
-        setTimeRemaining(secondsLeft > 0 ? secondsLeft : 0);
+    fetchInfo();
+  }, [accessCode]);
 
-        if (secondsLeft > 0){
-          const startTime = Date.now();
-          const endTime = expiry;
-
-          timerRef.current = setInterval(() => {
-            const now = Date.now();
-            const newSecondsLeft = Math.floor((endTime - now) / 1000);
-
-            if (newSecondsLeft <= 0){
-              setTimeRemaining(0);
-              clearInterval(timerRef.current);
-            }else{
-              setTimeRemaining(newSecondsLeft);
-            }
-          }, 1000);
-        }
-      })
-      .catch((err) => {
-        console.error("Session fetch failed", err);
-        setTimeRemaining(0); // expired or invalid
-      });
-
-      return () => {
-        if (timerRef.current){
-          clearInterval(timerRef.current);
-        }
-      };
-  }, [accessCode, router]);
-
-  // Poll session validity every 3 seconds
   useEffect(() => {
-    if (!accessCode) return;
+    if (!info || expired || cancelled) return;
 
-    const checkSessionValidity = async () => {
+    let active = true;
+    const poll = async () => {
       try {
-        await fetchSessionInfo(accessCode, password);
-        // Session is still valid
-      } catch (err) {
-        // Session is invalid or expired
-        console.log("Session no longer valid, redirecting...");
-        router.push('/expired?reason=cancelled');
+        const res = await fetch(`${API_BASE}/check-session/${accessCode}`);
+        if (!active) return;
+        if (res.status === 404 || res.status === 410) setCancelled(true);
+      } catch {
+        // Ignore polling errors.
       }
     };
 
-    // Check every 3 seconds
-    sessionCheckRef.current = setInterval(checkSessionValidity, 3000);
-
+    const interval = setInterval(poll, 4000);
     return () => {
-      if (sessionCheckRef.current) {
-        clearInterval(sessionCheckRef.current);
-      }
+      active = false;
+      clearInterval(interval);
     };
-  }, [accessCode, password, router]);
-  
+  }, [accessCode, info, expired, cancelled]);
 
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
+  const handleUnlock = async () => {
+    if (!password.trim()) return;
+    setVerifying(true);
+    setPwError("");
 
-    return `${hours > 0 ? `${hours}:` : ""}${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-  }
-
-  const handleUnlock = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setPasswordError("");
-    
     try {
-      // Fetch session info with password to verify
-      const data = await fetchSessionInfo(accessCode, password);
-      
-      // Check if download limit has been reached
-      if (data.downloadLimitReached) {
-        router.push('/expired?reason=download-limit');
+      const res = await fetch(
+        `${API_BASE}/session-info/${accessCode}?password=${encodeURIComponent(password)}`
+      );
+      if (res.status === 401) {
+        setPwError("Incorrect password. Please try again.");
+        return;
+      }
+      if (!res.ok) throw new Error("Server error");
+      const data = await res.json();
+      setInfo(data);
+      setUnlocked(true);
+    } catch {
+      setPwError("Something went wrong. Please try again.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!info) return;
+    setDownloading(true);
+    setDlError("");
+
+    try {
+      const url = `${API_BASE}/download/${accessCode}${password ? `?password=${encodeURIComponent(password)}` : ""}`;
+      const res = await fetch(url);
+
+      if (res.status === 403) {
+        setDlError("Download limit reached — this drop has been used up.");
         return;
       }
 
-      if (data.name) {
-        // Password was correct, file details returned
-        setFileMeta({
-          name: data.name,
-          size: data.size,
-          mimeType: data.mimeType,
-          isText: data.isText || false
-        });
-        setIsUnlocked(true);
-        setPasswordError("");
-      } else {
-        // Password incorrect or other error
-        setPasswordError("Incorrect password. Please try again.");
-      }
-    } catch (err) {
-      console.error("Password verification failed", err);
-      setPasswordError("Incorrect password. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (!res.ok) throw new Error("Download failed");
 
-  const getFileIcon = (mimeType) => {
-    if (!mimeType) return <File size={24} />;
-    
-    if (mimeType.includes("pdf")) return <FileText size={24} />
-    if (mimeType.includes("image")) return <ImageIcon size={24} />
-    if (mimeType.includes("video")) return <Film size={24} />
-    if (mimeType.includes("zip") || mimeType.includes("rar") || mimeType.includes("tar") || mimeType.includes("archive")) 
-      return <Archive size={24} />
-    
-    return <File size={24} />
-  }
-
-  const handleDownload = async () => {
-    if (!accessCode) return;
-    
-    // Check if this is a text message
-    if (fileMeta && fileMeta.isText) {
-      setIsDownloading(true);
-      try {
-        // Fetch encrypted text from backend
-        const response = await fetch(`${API_BASE}/download/${accessCode}?password=${encodeURIComponent(password || '')}`);
-        
-        if (!response.ok) {
-          const error = await response.json();
-          alert(error.error || "Failed to fetch message");
-          setIsDownloading(false);
-          return;
+      if (info.isText) {
+        const payload = await res.json();
+        const key = password || "vaultdrop-anon";
+        try {
+          const bytes = CryptoJS.AES.decrypt(payload.encryptedText, key);
+          const plain = bytes.toString(CryptoJS.enc.Utf8);
+          if (!plain) throw new Error("Bad key");
+          setDecryptedText(plain);
+          setDone(true);
+        } catch {
+          setDlError("Could not decrypt the message. The password may be wrong.");
         }
-        
-        const data = await response.json();
-        
-        // Store encrypted text and redirect to text viewer
-        sessionStorage.setItem('encrypted-text', data.encryptedText);
-        sessionStorage.setItem('text-has-password', data.hasPassword ? 'true' : 'false');
-        sessionStorage.setItem('text-password', password || '');
-        sessionStorage.setItem('text-access-code', accessCode);
-        router.push('/text-viewer');
-      } catch (error) {
-        console.error("Error fetching text:", error);
-        alert("Failed to fetch message");
-      } finally {
-        setIsDownloading(false);
+      } else {
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = info.name || "vaultdrop-file";
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+        setDone(true);
       }
-    } else {
-      // File download
-      setIsDownloading(true);
-      try {
-        await downloadFile(accessCode, password);
-        
-        // Download initiated successfully
-        setTimeout(() => {
-          setIsDownloading(false);
-        }, 2000);
-      } catch (error) {
-        setIsDownloading(false);
-        console.error("Download failed:", error);
-        alert("Download failed. Please try again.");
-      }
+    } catch {
+      setDlError("Download failed. The link may have expired.");
+    } finally {
+      setDownloading(false);
     }
   };
 
-  const handleDownloadAll = async () => {
-    if (accessCode) {
-      try {
-        await downloadFile(accessCode, password);
-      } catch (error) {
-        console.error("Download failed:", error);
-        alert("Download failed. Please try again.");
-      }
-    }
+  const copyText = () => {
+    navigator.clipboard.writeText(decryptedText).catch(() => {});
+    setTextCopied(true);
+    setTimeout(() => setTextCopied(false), 2000);
   };
 
-  if (timeRemaining === 0) {
+  if (loading) {
     return (
-      <div className="download-page">
-        <Header />
-        <main className="download-container">
-          <div className="download-card">
-            <div className="session-expired">
-              <Clock size={60} className="expired-icon" />
-              <h1>Session Expired</h1>
-              <p>This file sharing session is no longer available. The time has expired.</p>
-              <Link href="/" className="home-btn">
-                Return to Home
-              </Link>
-            </div>
-          </div>
-        </main>
-        <Footer />
+      <div className="page-loading" role="status">
+        <div className="loading-spinner" />
+        <p>Checking this drop…</p>
       </div>
-    )
+    );
   }
+
+  if (expired || cancelled) {
+    return (
+      <div className="expired-screen">
+        <div className="expired-icon">⌛</div>
+        <h2>{cancelled ? "This drop was cancelled" : "This drop has expired"}</h2>
+        <p>
+          {cancelled
+            ? "The sender ended this sharing session."
+            : "The file was automatically deleted when the timer ran out."}
+        </p>
+        <a href="/share" className="btn-primary">
+          Create your own drop →
+        </a>
+      </div>
+    );
+  }
+
+  if (!info) return null;
 
   return (
-    <div className="download-page">
-      <Header />
-      <main className="download-container">
-        <div className="download-card">
-          <div className="download-header">
-            <h1>Download Files</h1>
-            <div className="session-expiry">
-              <Clock size={18} />
-              <span>Session expires in: </span>
-              <span className="countdown">{formatTime(timeRemaining)}</span>
-            </div>
-          </div>
-
-          {isProtected && !isUnlocked ? (
-            <div className="password-protection">
-              <div className="protection-icon">
-                <Lock size={40} />
-              </div>
-              <h2>Password Protected Files</h2>
-              <p>These files are protected. Please enter the password to access them.</p>
-
-              <form onSubmit={handleUnlock} className="password-form">
-                <input
-                  type="password"
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setPasswordError(""); // Clear error when user types
-                  }}
-                  required
-                />
-                {passwordError && (
-                  <div className="error-message" style={{ color: 'red', marginTop: '10px', fontSize: '14px' }}>
-                    {passwordError}
-                  </div>
-                )}
-                <button type="submit" disabled={isLoading || !password}>
-                  {isLoading ? (
-                    <>
-                      <span className="spinner"></span>
-                      Verifying...
-                    </>
-                  ) : (
-                    <>
-                      <Shield size={18} />
-                      Unlock Files
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-          ) : fileMeta ?(
-            <>
-              <div className="files-list">
-                  <div className="file-item">
-                    <div className="file-info">
-                      <div className="file-icon">{getFileIcon(fileMeta.mimeType)}</div>
-                      <div className="file-details">
-                        <div className="file-name">{fileMeta.name}</div>
-                        <div className="file-size">{fileMeta.size}</div>
-                      </div>
-                    </div>
-                    <div className="file-actions">
-                      {isDownloading ? (
-                        <div className="downloading-state">
-                          <span className="spinner"></span>
-                          {fileMeta.isText ? 'Loading message...' : 'Preparing download...'}
-                        </div>
-                      ) : (
-                        <button 
-                          className="download-btn" 
-                          onClick={handleDownload}
-                          disabled={isDownloading}
-                        >
-                          {fileMeta.isText ? (
-                            <>
-                              <FileText size={18} />
-                              View Message
-                            </>
-                          ) : (
-                            <>
-                              <Download size={18} />
-                              Download
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-              </div>
-
-              <div className="download-all">
-                <button className="download-all-btn" onClick={handleDownloadAll}>
-                  <Download size={18} />
-                  Download All Files
-                </button>
-              </div>
-
-              <div className="download-info">
-                <p>Files ready for download. They will be available for {formatTime(timeRemaining)}.</p>
-              </div>
-            </>
-            ) : (
-              <div className="loading-file">
-                <p>Loading file information...</p>
-              </div>
-            )}
-          
+    <main className="download-page">
+      {info.expiresAt && (
+        <div className="expiry-banner">
+          <Clock size={12} />
+          <span>
+            Expires in <strong>{humanExpiry(info.expiresAt)}</strong>
+          </span>
         </div>
-      </main>
-      <Footer />
-    </div>
-  )
+      )}
+
+      <div className="download-card card">
+        <div className="file-display">
+          <div className="file-emoji" role="img" aria-label="File type icon">
+            {info.isText ? "🔏" : "📁"}
+          </div>
+          <h2 className="file-name">{info.name || "Secure Message"}</h2>
+          {info.size && (
+            <p className="file-size mono">
+              {formatBytes(info.size)} · {info.mimeType || "Encrypted"}
+            </p>
+          )}
+          {info.burnAfterRead && (
+            <div className="burn-notice">
+              <Flame size={12} />
+              <span>Burn after read — vanishes after you view it</span>
+            </div>
+          )}
+        </div>
+
+        {info.maxDownloads && (
+          <div className="dl-limit-notice">
+            <Shield size={11} />
+            <span>
+              {info.downloadCount ?? 0} of {info.maxDownloads} downloads used
+            </span>
+          </div>
+        )}
+
+        {!unlocked && (
+          <div className="password-section">
+            <div className="pw-gate-label">
+              <Lock size={13} />
+              <span>Password required to access this drop</span>
+            </div>
+            <div className="pw-field">
+              <input
+                type={showPw ? "text" : "password"}
+                placeholder="Enter password…"
+                value={password}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setPwError("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleUnlock();
+                }}
+              />
+              <button
+                className="pw-eye"
+                onClick={() => setShowPw((value) => !value)}
+                aria-label={showPw ? "Hide password" : "Show password"}
+                type="button"
+              >
+                {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+            {pwError && (
+              <p className="pw-error">
+                <AlertCircle size={11} /> {pwError}
+              </p>
+            )}
+            <button
+              className="btn-primary unlock-btn"
+              onClick={handleUnlock}
+              disabled={verifying || !password.trim()}
+            >
+              {verifying ? "Verifying…" : "Unlock"}
+            </button>
+          </div>
+        )}
+
+        {unlocked && !done && (
+          <div className="download-section">
+            <div className="unlocked-notice">
+              <Check size={13} />
+              {info.passwordProtected ? "Password verified — ready to access" : "Ready to access"}
+            </div>
+            {dlError && (
+              <p className="dl-error">
+                <AlertCircle size={11} /> {dlError}
+              </p>
+            )}
+            <button
+              className="btn-primary download-btn"
+              onClick={handleDownload}
+              disabled={downloading}
+              aria-disabled={downloading}
+            >
+              {downloading ? "Working…" : info.isText ? "View Secure Message" : "Download File"}
+            </button>
+          </div>
+        )}
+
+        {done && !info.isText && (
+          <div className="done-section">
+            <div className="done-check">
+              <Check size={22} />
+            </div>
+            <p className="done-headline">Download complete</p>
+            <p className="done-sub">The file has been saved to your device.</p>
+          </div>
+        )}
+
+        {done && info.isText && decryptedText && (
+          <div className="text-reveal">
+            <div className="text-reveal-header">
+              <span>Decrypted Message</span>
+              <button onClick={copyText} className="copy-text-btn">
+                {textCopied ? (
+                  <>
+                    <Check size={11} /> Copied
+                  </>
+                ) : (
+                  "Copy"
+                )}
+              </button>
+            </div>
+            <pre className="revealed-text mono">{decryptedText}</pre>
+            {info.burnAfterRead && (
+              <p className="burned-notice">
+                <Flame size={11} />
+                This message has been permanently deleted from the server.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <p className="dl-footer">
+        Shared via <a href="/" className="brand-link">VaultDrop</a> · {" "}
+        <a href="/share">Create your own secure drop</a>
+      </p>
+    </main>
+  );
 }

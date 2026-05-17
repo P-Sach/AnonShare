@@ -3,8 +3,6 @@
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
-import Header from "../components/Header"
-import Footer from "../components/Footer"
 import { AlertTriangle, Clock, FileX, Download } from "lucide-react"
 import "../styles/ExpiredPage.css"
 
@@ -97,7 +95,6 @@ function ExpiredContent() {
 export default function ExpiredPage() {
   return (
     <div className="expired-page">
-      <Header />
       <Suspense fallback={
         <main className="expired-container">
           <div className="expired-card">
@@ -110,7 +107,6 @@ export default function ExpiredPage() {
       }>
         <ExpiredContent />
       </Suspense>
-      <Footer />
     </div>
   )
 }

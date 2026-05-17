@@ -57,7 +57,7 @@ const getLocalIP = () => {
 router.post('/start', upload.single('file'), async (req, res) => {
   try {
     console.log('📡 Starting local server...');
-    const { port, password, maxDownloads, encryptedText } = req.body;
+    const { port, password, maxDownloads, encryptedText, autoClearSeconds } = req.body;
     const file = req.file;
 
     // Either file or text must be provided
@@ -100,7 +100,8 @@ router.post('/start', upload.single('file'), async (req, res) => {
       port: portNumber,
       fileName: fileName,
       password: password || null,
-      isText: !file // Mark as text share
+      isText: !file, // Mark as text share
+      autoClearSeconds: autoClearSeconds ? parseInt(autoClearSeconds) : null
     };
 
     const accessKey = Buffer.from(JSON.stringify(accessInfo)).toString('base64');
@@ -112,7 +113,8 @@ router.post('/start', upload.single('file'), async (req, res) => {
       port: portNumber,
       fileName: fileName,
       maxDownloads: maxDL,
-      isText: !file
+      isText: !file,
+      autoClearSeconds: accessInfo.autoClearSeconds
     });
   } catch (error) {
     console.error('❌ Error starting local server:', error);

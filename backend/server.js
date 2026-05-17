@@ -21,9 +21,17 @@ const sessionDataRouter = require('./routes/sessionData');
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  skip: (req) => req.path.startsWith('/local-server') && process.env.NODE_ENV !== 'production',
 });
 
-app.use(limiter);
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: 'Too many uploads from this IP. Please wait a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 
 // Disable Mongoose buffering for serverless - fail fast instead of buffering
 mongoose.set('bufferCommands', false);
@@ -87,9 +95,10 @@ app.use(async (req, res, next) => {
 
 // Middleware
 const allowedOrigins = [
+  process.env.FRONTEND_URL,
   'http://localhost:5173',
   'http://localhost:3000',
-];
+].filter(Boolean);
 
 // Add Vercel domains dynamically
 if (process.env.VERCEL_URL) {
@@ -99,20 +108,21 @@ if (process.env.VERCEL_URL) {
 // CORS configuration - be permissive for Vercel deployments
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    
-    // Allow all Vercel deployments and localhost
+
+    const isLocalIpOrigin = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(origin);
+
     if (origin && (
-      origin.endsWith('.vercel.app') || 
+      origin.endsWith('.vercel.app') ||
       allowedOrigins.includes(origin) ||
-      origin.includes('localhost')
+      origin.includes('localhost') ||
+      isLocalIpOrigin
     )) {
       return callback(null, true);
     }
-    
+
     console.log('CORS blocked origin:', origin);
-    callback(null, true); // Allow for now, restrict in production
+    callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -136,6 +146,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -143,7 +154,7 @@ app.get('/', (req, res) => res.send('AnonShare API is up'));
 app.get('/api', (req, res) => res.send('AnonShare API is up'));
 
 // Mount routes - Vercel will route everything here, so no /api prefix needed
-app.use('/upload', uploadRouter);
+app.use('/upload', uploadLimiter, uploadRouter);
 app.use('/download', downloadRouter);
 app.use('/locshare', locshareRouter);
 app.use('/locdownload', locdownloadRouter);

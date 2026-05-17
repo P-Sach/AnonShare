@@ -59,6 +59,15 @@ router.post('/', (req, res, next) => {
     const { file } = req;
     const { encryptedText } = req.body;
     const expireSeconds = parseInt(req.body.expireSeconds, 10) || 3600;
+    const isText = req.body.isText === 'true' || !!encryptedText;
+    const burnAfterRead = req.body.burnAfterRead === 'true';
+
+    if (!expireSeconds || expireSeconds < 60 || expireSeconds > 2592000) {
+      return res.status(400).json({
+        error: 'Invalid expiry',
+        message: 'Expiry must be between 60 seconds and 30 days.'
+      });
+    }
     const expireAt = new Date(Date.now() + expireSeconds*1000);
     const passwordHash = req.body.password
       ? await bcrypt.hash(req.body.password, 10)
@@ -68,15 +77,19 @@ router.post('/', (req, res, next) => {
       ? parseInt(req.body.maxDownloads)
       : null;
 
-    // Either file or encrypted text must be provided
-    if (!file && !encryptedText) {
-      console.log('[Upload] Error: No file or text provided');
-      return res.status(400).json({ error: 'No file or text provided' });
+    if (isText && !encryptedText) {
+      console.log('[Upload] Error: No text provided');
+      return res.status(400).json({ error: 'No text provided' });
+    }
+
+    if (!isText && !file) {
+      console.log('[Upload] Error: No file provided');
+      return res.status(400).json({ error: 'No file provided' });
     }
 
     let doc;
     
-    if (file) {
+    if (file && !isText) {
       // File upload mode
       console.log('[Upload] Creating file document in MongoDB');
       doc = await File.create({
@@ -87,14 +100,15 @@ router.post('/', (req, res, next) => {
         expireAt:     expireAt,
         passwordHash,
         maxDownloads,
-        isText: false
+        isText: false,
+        burnAfterRead: false
       });
       console.log('[Upload] File document created:', doc._id);
     } else {
       // Text mode - store encrypted text
       console.log('[Upload] Creating text document in MongoDB');
       doc = await File.create({
-        originalName: 'encrypted-message.txt',
+        originalName: req.body.originalName || 'encrypted-message.txt',
         storageName:  null, // No file stored
         mimeType:     'text/plain',
         size:         encryptedText.length,
@@ -102,7 +116,8 @@ router.post('/', (req, res, next) => {
         passwordHash,
         maxDownloads,
         isText: true,
-        encryptedText: encryptedText // Store encrypted text in DB
+        encryptedText: encryptedText, // Store encrypted text in DB
+        burnAfterRead: burnAfterRead
       });
       console.log('[Upload] Text document created:', doc._id);
     }
@@ -129,12 +144,14 @@ router.post('/', (req, res, next) => {
       fileId: doc._id.toString(),
       downloadUrl: `/download/${accessCode}`,
       expiresAt: expireAt.toISOString(),
+      expireSeconds: expireSeconds,
       createdAt: new Date().toISOString(),
       maxDownloads: maxDownloads,
       fileCount: 1,
       totalSize: file ? file.size : encryptedText.length,
       downloads: 0,
-      isText: !!encryptedText
+      isText: !!encryptedText,
+      burnAfterRead: burnAfterRead
     };
     await redis.set(`metadata:${ownerToken}`, JSON.stringify(sessionMetadata), 'EX', expireSeconds);
     
@@ -156,6 +173,15 @@ router.post('/', (req, res, next) => {
       stack: err.stack,
       name: err.name
     });
+
+    if (req.file?.path) {
+      try {
+        const fs = require('fs');
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupErr) {
+        console.error('[Upload] Failed to cleanup file:', cleanupErr);
+      }
+    }
     
     // Send detailed error for debugging
     res.status(500).json({ 

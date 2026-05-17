@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import Header from "../components/Header"
-import Footer from "../components/Footer"
 import { FileText, Lock, Eye, EyeOff, Copy, Check } from "lucide-react"
 import "../styles/TextViewer.css"
-import { decryptText } from "../utils/crypto"
+import CryptoJS from "crypto-js"
 
 export default function TextViewerPage() {
   const router = useRouter()
@@ -19,14 +17,20 @@ export default function TextViewerPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
   const [returnUrl, setReturnUrl] = useState("/access")
+  const [expired, setExpired] = useState(false)
 
   const handleDecrypt = useCallback(async (encrypted, pwd) => {
     setIsDecrypting(true)
     setError("")
 
     try {
-      const decrypted = await decryptText(encrypted, pwd)
-      setDecryptedText(decrypted)
+      const key = pwd || "vaultdrop-anon"
+      const bytes = CryptoJS.AES.decrypt(encrypted, key)
+      const result = bytes.toString(CryptoJS.enc.Utf8)
+      if (!result) {
+        throw new Error("Invalid password or corrupted data")
+      }
+      setDecryptedText(result)
     } catch (err) {
       console.error("Decryption error:", err)
       setError("Failed to decrypt message. Invalid password or corrupted data.")
@@ -41,10 +45,26 @@ export default function TextViewerPage() {
     const hasPwd = sessionStorage.getItem('text-has-password') === 'true'
     const pwd = sessionStorage.getItem('text-password') || ''
     const accessCode = sessionStorage.getItem('text-access-code') || ''
+    const locHost = sessionStorage.getItem('locshare-host') || ''
+    const locPort = sessionStorage.getItem('locshare-port') || ''
+    const autoClearSeconds = parseInt(sessionStorage.getItem('locshare-auto-clear') || '0', 10)
+    const openedAt = parseInt(sessionStorage.getItem('locshare-opened-at') || '0', 10)
 
     if (!encrypted) {
       router.push('/access')
       return
+    }
+
+    if (autoClearSeconds > 0 && openedAt > 0) {
+      const expiresAt = openedAt + autoClearSeconds * 1000
+      if (Date.now() >= expiresAt) {
+        sessionStorage.removeItem('encrypted-text')
+        sessionStorage.removeItem('text-has-password')
+        sessionStorage.removeItem('text-password')
+        sessionStorage.removeItem('locshare-opened-at')
+        setExpired(true)
+        return
+      }
     }
 
     setEncryptedText(encrypted)
@@ -56,9 +76,45 @@ export default function TextViewerPage() {
       setReturnUrl(`/download/${accessCode}`)
     }
 
-    // Auto-decrypt if no password required or password already provided
-    if (!hasPwd || pwd) {
-      handleDecrypt(encrypted, pwd)
+    const verifyLocalSession = async () => {
+      if (!locHost || !locPort) return true
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 2000)
+        const res = await fetch(`http://${locHost}:${locPort}/ping`, { signal: controller.signal })
+        clearTimeout(timeoutId)
+        if (!res.ok) throw new Error('Ping failed')
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    verifyLocalSession().then((ok) => {
+      if (!ok) {
+        sessionStorage.removeItem('encrypted-text')
+        sessionStorage.removeItem('text-has-password')
+        sessionStorage.removeItem('text-password')
+        sessionStorage.removeItem('locshare-opened-at')
+        setExpired(true)
+        return
+      }
+
+      if (!hasPwd || pwd) {
+        handleDecrypt(encrypted, pwd)
+      }
+    })
+
+    if (autoClearSeconds > 0) {
+      const remaining = Math.max(0, (openedAt + autoClearSeconds * 1000) - Date.now())
+      const timer = setTimeout(() => {
+        sessionStorage.removeItem('encrypted-text')
+        sessionStorage.removeItem('text-has-password')
+        sessionStorage.removeItem('text-password')
+        sessionStorage.removeItem('locshare-opened-at')
+        setExpired(true)
+      }, remaining)
+      return () => clearTimeout(timer)
     }
 
     // Don't cleanup immediately - only on unmount
@@ -83,7 +139,6 @@ export default function TextViewerPage() {
 
   return (
     <div className="text-viewer-page">
-      <Header />
       <main className="text-viewer-container">
         <div className="text-viewer-card">
           <div className="text-viewer-header">
@@ -94,7 +149,11 @@ export default function TextViewerPage() {
             <p>View the encrypted text message shared with you</p>
           </div>
 
-          {!decryptedText ? (
+          {expired ? (
+            <div className="error-message">
+              This message is no longer available.
+            </div>
+          ) : !decryptedText ? (
             !isDecrypting && hasPassword && !password ? (
               // Show password form
               <form onSubmit={handleSubmit} className="password-form">
@@ -180,7 +239,6 @@ export default function TextViewerPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   )
 }

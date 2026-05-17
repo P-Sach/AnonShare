@@ -46,11 +46,23 @@ router.get('/:accessCode', async (req, res) => {
       // Text mode - return encrypted text as JSON
       fileDoc.downloadCount += 1;
       await fileDoc.save();
-      
-      return res.json({
+
+      if (fileDoc.burnAfterRead) {
+        res.on('finish', async () => {
+          try {
+            await File.findByIdAndDelete(fileDoc._id);
+            await redis.del(`access:${accessCode}`);
+          } catch (cleanupErr) {
+            console.error('[Download] Burn-after-read cleanup failed:', cleanupErr);
+          }
+        });
+      }
+
+      res.json({
         encryptedText: fileDoc.encryptedText,
         hasPassword: !!fileDoc.passwordHash
       });
+      return;
     }
 
     // 4. Build filesystem path (file mode)

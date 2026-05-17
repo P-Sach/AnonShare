@@ -8,22 +8,14 @@ function QRAccessContent() {
   const searchParams = useSearchParams()
   
   useEffect(() => {
-    // Get the access key from query params
     const key = searchParams.get('key')
-    
+
     if (key) {
-      // Store the key in sessionStorage to auto-fill on access page
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('locshare-access-key', key)
-        // Switch to light theme (LocShare mode)
-        localStorage.setItem('theme', 'light')
-        document.body.className = 'light'
       }
-      
-      // Redirect to access page
       router.push('/access')
     } else {
-      // No key provided, redirect to home
       router.push('/')
     }
   }, [searchParams, router])

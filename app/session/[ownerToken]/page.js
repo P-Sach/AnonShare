@@ -1,373 +1,252 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import { QRCodeSVG } from "qrcode.react"
-import { useParams, useRouter } from "next/navigation"
-import Image from "next/image"
-import Header from "../../components/Header"
-import Footer from "../../components/Footer"
-import { Clock, Copy, Share2, XCircle, CheckCircle, AlertTriangle } from "lucide-react"
-import "../../styles/SessionPage.css"
-import { endSharingSession, fetchSessionData } from "../../utils/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { BarChart3, Check, Clock, Copy, Download, Shield } from "lucide-react";
+import { API_BASE } from "../../config";
+
+function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatCountdown(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
 
 export default function SessionPage() {
-  const params = useParams();
-  const ownerToken = params.ownerToken;
+  const { ownerToken } = useParams();
   const router = useRouter();
-  const [timeRemaining, setTimeRemaining] = useState(null) 
-  const [copied, setCopied] = useState(false)
-  const [sessionData, setSessionData] = useState(null);
-  const [showConfirmation, setShowConfirmation] = useState(false)
-  const [error, setError] = useState(null);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const [sessionCancelled, setSessionCancelled] = useState(false)
-  const timerRef = useRef(null)
-  const confirmationTimeoutRef = useRef(null);
 
-  // Protect this page - only accessible in dark theme (AnonShare)
-  useEffect(() => {
-    const theme = localStorage.getItem("theme") || "dark"
-    if (theme === "light") {
-      router.push("/")
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [countdown, setCountdown] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [newDownload, setNewDownload] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const prevDownloads = useRef(0);
+
+  const fetchSession = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/session-data/${ownerToken}`);
+      if (res.status === 404) {
+        router.replace("/expired?reason=not-found");
+        return;
+      }
+      if (!res.ok) return;
+
+      const data = await res.json();
+      setSession(data);
+      setLoading(false);
+
+      if (prevDownloads.current > 0 && data.downloads > prevDownloads.current) {
+        setNewDownload(true);
+        setTimeout(() => setNewDownload(false), 3500);
+      }
+      prevDownloads.current = data.downloads;
+
+      const remaining = Math.max(0, Math.floor((new Date(data.expiresAt) - Date.now()) / 1000));
+      setCountdown(remaining);
+      if (remaining <= 0) router.replace("/expired?reason=time");
+    } catch {
+      // Ignore polling errors.
     }
+  }, [ownerToken, router]);
 
-    const handleThemeChange = () => {
-      const newTheme = localStorage.getItem("theme") || "dark"
-      if (newTheme === "light") {
-        router.push("/")
-      }
-    }
-
-    const interval = setInterval(handleThemeChange, 100)
-    return () => clearInterval(interval)
-  }, [router])
-  
   useEffect(() => {
-    const loadSessionData = async () => {
-      try {
-        if (!ownerToken) {
-          setError("Unauthorized access - owner token required");
-          setInitialLoadComplete(true);
-          return;
-        }
-  
-        // Fetch session data from backend using owner token
-        const data = await fetchSessionData(ownerToken);
-        
-        if (!data) {
-          setError("Session not found or unauthorized");
-          setSessionCancelled(true);
-          setTimeRemaining(0);
-        } else {
-          setSessionData(data);
-        }
-      } catch (err) {
-        console.error("Failed to load session data:", err);
-        setError("Session not found or unauthorized access");
-        setSessionCancelled(true);
-        setTimeRemaining(0);
-      } finally {
-        setInitialLoadComplete(true);
-      }
-    };
-  
-    loadSessionData();
+    fetchSession();
+    const interval = setInterval(fetchSession, 5000);
+    return () => clearInterval(interval);
+  }, [fetchSession]);
 
-    // Poll for download count updates every 5 seconds
-    const pollInterval = setInterval(async () => {
-      if (ownerToken && !sessionCancelled && !error) {
-        try {
-          const data = await fetchSessionData(ownerToken);
-          if (data) {
-            // Update session data with new download count
-            setSessionData(prevData => ({
-              ...prevData,
-              downloads: data.downloads,
-              maxDownloads: data.maxDownloads,
-            }));
-          }
-        } catch (err) {
-          console.error("Failed to poll session data:", err);
-          // Session was cancelled or expired
-          setError("Session has been cancelled or expired");
-          setSessionCancelled(true);
-          setTimeRemaining(0);
-          clearInterval(pollInterval);
-        }
-      }
-    }, 3000); // Poll every 3 seconds for faster detection
-    
-    return () => {
-      clearInterval(timerRef.current);
-      clearInterval(pollInterval);
-      clearTimeout(confirmationTimeoutRef.current);
-    };
-  }, [ownerToken, sessionCancelled, error]);
-
-  
   useEffect(() => {
-     if (!initialLoadComplete || error || sessionCancelled || !sessionData || !sessionData.expiresAt) {
-      if (initialLoadComplete && !sessionCancelled && !error && sessionData && !sessionData.expiresAt) {
-          console.log("Session loaded but has no expiry date. Setting timeRemaining to 0.");
-          setTimeRemaining(0); // Treat as immediately expired if no date
-      }
-      return; // Don't start timer if cancelled, error, or no expiry
-    }
-
-  // Calculate the initial remaining time based on expiresAt
-  const expiresAtTimestamp = new Date(sessionData.expiresAt).getTime();
-  const now = Date.now();
-  const initialRemainingSeconds = Math.max(0, Math.floor((expiresAtTimestamp - now) / 1000));
-
-  setTimeRemaining(initialRemainingSeconds); // Set the calculated time
-
-  // Clear any existing interval before starting a new one
-  clearInterval(timerRef.current);
-  clearTimeout(confirmationTimeoutRef.current); // Clear existing confirmation timeout
-
-  // Only start the interval if there's time remaining
-  if (initialRemainingSeconds > 0) {
-    timerRef.current = setInterval(() => {
-      // Use functional update to safely decrement
-      setTimeRemaining((prev) => {
-        if (prev === null || prev <= 1) { // Check prev state directly
-          clearInterval(timerRef.current);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          router.replace("/expired?reason=time");
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+    return () => clearInterval(interval);
+  }, [router]);
 
-    // Show confirmation toast only if the session just started (e.g., initialRemaining > a threshold?)
-    // Or maybe show it regardless if it's newly loaded? Let's keep it simple for now.
-     if (!sessionCancelled) { // Avoid showing toast if session was cancelled immediately
-       setShowConfirmation(true);
-       confirmationTimeoutRef.current = setTimeout(() => {
-         setShowConfirmation(false);
-       }, 5000);
-     }
-
-  } else {
-      console.log("Timer Effect: Initial time is zero or negative. Not starting interval.");
-      // If time is already 0 or less when calculated, ensure state is 0
-      setTimeRemaining(0);
-  }
-  // Depend on expiresAt and initialLoadComplete. Also add sessionCancelled to stop toast if cancelled.
-}, [sessionData, initialLoadComplete, sessionCancelled, error]);
-
-  const formatTime = (seconds) => {
-    if (seconds === null || typeof seconds === 'undefined') return "Calculating...";
-    if (seconds <= 0) return "00:00"; // Show 00:00 when expired
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
-
-    return `${hours > 0 ? `${hours}:` : ""}${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-  }
-  const formatFileSize = (bytes) => {
-    if (bytes === null || typeof bytes === 'undefined' || bytes < 0) return "N/A";
-    if (bytes === 0) return "0 B";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  };
-  
+  const shareUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/download/${session?.accessCode}`
+    : "";
 
   const handleCopy = () => {
-    if (!sessionData?.downloadUrl) return;
-    const fullUrl = `${window.location.origin}${sessionData.downloadUrl}`;
-    navigator.clipboard.writeText(fullUrl)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy text: ', err);
-        alert("Failed to copy link to clipboard.");
+    navigator.clipboard.writeText(shareUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2200);
+  };
+
+  const handleCancel = async () => {
+    const confirmed = window.confirm(
+      "End this session?\n\nThe file will be permanently deleted and the share link will stop working immediately."
+    );
+    if (!confirmed) return;
+
+    setCancelling(true);
+    try {
+      await fetch(`${API_BASE}/endsession`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerToken }),
       });
-  }
-
-  const handleCancelSession = async () => {
-    // Ask for confirmation first
-    if (!window.confirm("Are you sure you want to cancel this sharing session? This action cannot be undone.")) {
-        console.log("[Cancel] Aborted by user.");
-        return;
+      router.replace("/expired?reason=cancelled");
+    } catch {
+      setCancelling(false);
+      alert("Could not cancel session — please try again.");
     }
+  };
 
-    console.log("[Cancel] Confirmed by user. Current state:", { sessionCancelled, timeRemaining });
-    console.log("[Cancel] Clearing timer interval.");
-    clearInterval(timerRef.current); // Stop the timer update
-
-    // Use the ownerToken from URL params
-    if (!ownerToken) {
-      console.error("[Cancel] Cannot proceed: owner token is missing.");
-      alert("Error: Unauthorized access. Cannot cancel session.");
-      return;
-    }
-
-  console.log(`[Cancel] Attempting to call endSharingSession API for owner token: ${ownerToken}`);
-  try {
-      await endSharingSession(ownerToken);
-      console.log(`[Cancel] API call for owner token ${ownerToken} successful.`);
-      console.log("[Cancel] Setting sessionCancelled = true and timeRemaining = 0");
-      setSessionCancelled(true);
-      setTimeRemaining(0);
-  } catch (err) {
-      console.error(`[Cancel] API call failed for owner token ${ownerToken}:`, err);
-      alert("Failed to cancel the session on the server. It might expire automatically later. Cancelling the view locally.");
-      console.log("[Cancel] API failed, but setting sessionCancelled = true and timeRemaining = 0 for UI");
-      setSessionCancelled(true);
-      setTimeRemaining(0);
-  }
-};
-
-  const isSessionExpired = initialLoadComplete && timeRemaining === 0;
-  const isInvalidOrError = initialLoadComplete && (error || (!sessionData && !sessionCancelled)); // Handle missing data/error cases
-  const isExpiredOrCancelled = sessionCancelled || isSessionExpired;
-  if (isInvalidOrError) {
+  if (loading) {
     return (
-        <div className="session-page">
-            <Header />
-            <main className="session-container">
-                <div className="session-card">
-                    <div className="session-cancelled">
-                        <AlertTriangle size={60} className="cancelled-icon" />
-                        <h1>Unauthorized Access</h1>
-                        <p>{error || "This session is not accessible. Only the person who created the share can view this page."}</p>
-                        <a href="/share" className="new-share-btn">
-                            Start a New Share
-                        </a>
-                    </div>
-                </div>
-            </main>
-            <Footer />
-        </div>
-    )
-}
-
-  if (isExpiredOrCancelled) {
-    const reason = sessionCancelled ? "Cancelled" : "Expired";
-    const message = sessionCancelled
-      ? "You have cancelled it."
-      : "The time limit has been reached.";
-    return (
-      <div className="session-page">
-        <Header />
-        <main className="session-container">
-          <div className="session-card">
-            <div className="session-cancelled">
-              <AlertTriangle size={60} className="cancelled-icon" />
-              <h1>Session {reason}</h1>
-              <p>
-                This file sharing session is no longer available.{" "}
-                {message}
-              </p>
-              <a href="/share" className="new-share-btn">
-                Share New Files
-              </a>
-            </div>
-          </div>
-        </main>
-        <Footer />
+      <div className="page-loading" role="status">
+        <div className="loading-spinner" />
+        <p>Loading your session…</p>
       </div>
-    )
+    );
   }
+
+  if (!session) return null;
+
+  const downloadPercent = session.maxDownloads
+    ? Math.min((session.downloads / session.maxDownloads) * 100, 100)
+    : null;
+  const limitReached = session.maxDownloads && session.downloads >= session.maxDownloads;
 
   return (
-    <div className="session-page">
-      <Header />
-      <main className="session-container">
-        <div className="session-card">
-          <div className="session-header">
-            <h1>Share this Session</h1>
-            <p>Scan the QR code or share the link below. The session will expire automatically.</p>
+    <main className="session-page">
+      <div className="session-header">
+        <div>
+          <div className={`status-badge ${limitReached ? "limit-reached" : "active"}`}>
+            <span className="status-dot" />
+            {limitReached ? "Download limit reached" : "Drop Active"}
+          </div>
+          <h1>Your Drop is Live</h1>
+        </div>
+        <div className="countdown-block" aria-label="Time remaining">
+          <span className="countdown-time mono">{formatCountdown(countdown)}</span>
+          <span className="countdown-label">time remaining</span>
+        </div>
+      </div>
+
+      {newDownload && (
+        <div className="dl-toast" role="status" aria-live="polite">
+          <Download size={13} />
+          Someone just downloaded your file!
+        </div>
+      )}
+
+      <div className="card link-card">
+        <p className="card-label">Share Link</p>
+        <div className="link-row">
+          <code className="share-url" aria-label="Share URL">{shareUrl}</code>
+          <button
+            className={`copy-btn ${copied ? "copied" : ""}`}
+            onClick={handleCopy}
+            aria-label={copied ? "Link copied" : "Copy link"}
+          >
+            {copied ? (
+              <>
+                <Check size={12} /> Copied!
+              </>
+            ) : (
+              <>
+                <Copy size={12} /> Copy
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      <div className="stats-qr-grid">
+        <div className="card stats-card">
+          <p className="card-label">Session Info</p>
+
+          <div className="stat-list">
+            {[
+              ["Filename", session.name, false],
+              ["Size", formatBytes(session.totalSize), true],
+              ["Type", session.isText ? "Encrypted text" : (session.mimeType || "Unknown"), false],
+              ["Password", session.passwordProtected ? "Protected" : "None", false],
+              ["Expiry", session.expiryLabel || "24 hours", false],
+            ].map(([label, value, mono]) => (
+              <div key={label} className="stat-row">
+                <span className="stat-label">{label}</span>
+                <span className={`stat-value ${mono ? "mono" : ""}`}>{value}</span>
+              </div>
+            ))}
           </div>
 
-          <div className="session-content">
-            <div className="qr-container">
-              {sessionData?.qrCode ? (
-                <Image 
-                  src={sessionData.qrCode} 
-                  alt="QR Code" 
-                  width={200} 
-                  height={200}
-                  priority
+          <div className="dl-counter">
+            <div className="dl-counter-row">
+              <span>
+                <BarChart3 size={12} /> Downloads
+              </span>
+              <span className="mono">
+                {session.downloads}
+                {session.maxDownloads ? ` / ${session.maxDownloads}` : " (unlimited)"}
+              </span>
+            </div>
+            {downloadPercent !== null && (
+              <div
+                className="dl-track"
+                role="progressbar"
+                aria-valuenow={session.downloads}
+                aria-valuemax={session.maxDownloads}
+              >
+                <div
+                  className="dl-fill"
+                  style={{
+                    width: `${downloadPercent}%`,
+                    backgroundColor: limitReached ? "var(--red)" : "var(--acid)",
+                  }}
                 />
-              ) : (
-                <div className="qr-placeholder">Generating QR...</div>
-              )}
-            </div>
-
-            <div className="session-info">
-              <div className="time-remaining">
-                <Clock size={20} />
-                <span>Time remaining: </span>
-                <span className="countdown">{formatTime(timeRemaining)}</span>
               </div>
-
-              <div className="session-url-container">
-                <input type="text" value={sessionData?.downloadUrl || ""} readOnly className="session-url" />
-                <button className={`copy-btn ${copied ? "copied" : ""}`} onClick={handleCopy}
-                disabled={!sessionData?.downloadUrl || copied}>
-                  {copied ? <CheckCircle size={18} /> : <Copy size={18} />}
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-
-              <div className="share-options">
-                <button className="share-btn">
-                  <Share2 size={18} />
-                  Share via Email
-                </button>
-                <button className="cancel-btn" onClick={handleCancelSession}>
-                  <XCircle size={18} />
-                  Cancel Session
-                </button>
-              </div>
-            </div>
+            )}
           </div>
+        </div>
 
-          {showConfirmation && (
-            <div className="confirmation-toast">
-              <CheckCircle size={18} />
-              Session created! Share the link or QR code with recipients.
+        <div className="card qr-card">
+          <p className="card-label">Scan to Share</p>
+          {session.qrCode ? (
+            <img
+              src={session.qrCode}
+              alt={`QR code for share URL: ${shareUrl}`}
+              className="qr-img"
+            />
+          ) : (
+            <div className="qr-placeholder" aria-label="QR code loading">
+              Generating QR…
             </div>
           )}
+          <p className="qr-hint">Recipients can scan to download instantly</p>
         </div>
+      </div>
 
-        <div className="session-details">
-          <h2>Session Details</h2>
-          <div className="details-grid">
-            <div className="detail-item">
-              <h3>Files Shared</h3>
-              <p>
-              {sessionData?.fileCount || 1} file
-              {sessionData?.fileCount !== 1 ? "s" : ""}
-              {sessionData?.totalSize ? ` (${formatFileSize(sessionData.totalSize)})` : ""}
-              </p>
-            </div>
-            <div className="detail-item">
-              <h3>Created</h3>
-              <p>{sessionData?.createdAt
-                  ? new Date(sessionData.createdAt).toLocaleString()
-                  : "Just now"}
-                </p>
-            </div>
-            <div className="detail-item">
-              <h3>Expires</h3>
-              <p>
-                  {sessionData?.expiresAt
-                    ? new Date(sessionData.expiresAt).toLocaleString()
-                    : "Calculating..."}
-                </p>
-            </div>
-            <div className="detail-item">
-              <h3>Downloads</h3>
-              <p>{sessionData?.downloads || 0} of {sessionData?.maxDownloads || "unlimited"}</p>            </div>
-          </div>
-        </div>
-      </main>
-      <Footer />
-    </div>
-  )
+      <div className="session-actions">
+        <button className="btn-ghost" onClick={() => router.push(`/download/${session.accessCode}`)}>
+          Preview recipient view →
+        </button>
+        <button className="btn-danger" onClick={handleCancel} disabled={cancelling} aria-disabled={cancelling}>
+          {cancelling ? "Ending session…" : "End Session"}
+        </button>
+      </div>
+
+      <p className="security-note">
+        <Shield size={11} />
+        Files are stored securely and deleted on expiry or cancellation.
+        {session.burnAfterRead ? " This message will self-destruct after first view." : ""}
+      </p>
+    </main>
+  );
 }

@@ -12,7 +12,8 @@ const fileSchema = new mongoose.Schema({
   maxDownloads:  { type: Number, default: null },
   downloadCount: { type: Number, default: 0 },
   isText:        { type: Boolean, default: false },
-  encryptedText: { type: String, default: null } // Store encrypted text for text mode
+  encryptedText: { type: String, default: null }, // Store encrypted text for text mode
+  burnAfterRead: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('File', fileSchema);

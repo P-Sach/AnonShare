@@ -59,7 +59,8 @@ router.get('/:identifier', async (req, res) => {
       downloadCount: file.downloadCount,
       maxDownloads: file.maxDownloads,
       downloadLimitReached: downloadLimitReached,
-      isText: file.isText || false
+      isText: file.isText || false,
+      burnAfterRead: file.burnAfterRead || false
     });
   } catch (err) {
     console.error('[SessionInfo]', err);
