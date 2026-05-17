@@ -85,6 +85,28 @@ export default function ShareClient() {
     []
   );
 
+  const handleStopSharing = useCallback(async () => {
+    setIsSharing(false);
+    setShareKey("");
+    setDownloadCount(0);
+    setDownloadLimitReached(false);
+    setSessionEndTime(null);
+    setTimeRemaining(null);
+
+    if (activePort) {
+      try {
+        await fetch(`${API_BASE}/local-server/stop`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ port: activePort }),
+        });
+      } catch {
+        // Ignore stop failures; UI already resets.
+      }
+      setActivePort(null);
+    }
+  }, [activePort]);
+
   useEffect(() => {
     if (mode !== "local") return;
 
@@ -213,28 +235,6 @@ export default function ShareClient() {
     if (mode === "local") return true;
     return false;
   }, [mode, file, text]);
-
-  const handleStopSharing = useCallback(async () => {
-    setIsSharing(false);
-    setShareKey("");
-    setDownloadCount(0);
-    setDownloadLimitReached(false);
-    setSessionEndTime(null);
-    setTimeRemaining(null);
-
-    if (activePort) {
-      try {
-        await fetch(`${API_BASE}/local-server/stop`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ port: activePort }),
-        });
-      } catch {
-        // Ignore stop failures; UI already resets.
-      }
-      setActivePort(null);
-    }
-  }, [activePort]);
 
   const handleLocalStart = async () => {
     if (!localFile && !text.trim()) {
