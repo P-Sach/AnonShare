@@ -1,6 +1,21 @@
 import "./globals.css";
+import { Space_Mono, Syne } from "next/font/google";
 import Header from "./components/Header";
 import ErrorBoundary from "./components/ErrorBoundary";
+
+const syne = Syne({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-syne",
+  display: "swap",
+});
+
+const spaceMono = Space_Mono({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-space-mono",
+  display: "swap",
+});
 
 export const metadata = {
   title: "VaultDrop — Secure ephemeral file sharing",
@@ -15,15 +30,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body>
+      <body className={`${syne.variable} ${spaceMono.variable}`}>
         <ErrorBoundary>
           <Header />
           <div className="page-container">{children}</div>

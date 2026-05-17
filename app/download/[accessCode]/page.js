@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import CryptoJS from "crypto-js";
 import {
@@ -338,8 +339,8 @@ export default function DownloadPage() {
       </div>
 
       <p className="dl-footer">
-        Shared via <a href="/" className="brand-link">VaultDrop</a> · {" "}
-        <a href="/share">Create your own secure drop</a>
+        Shared via <Link href="/" className="brand-link">VaultDrop</Link> · {" "}
+        <Link href="/share">Create your own secure drop</Link>
       </p>
     </main>
   );

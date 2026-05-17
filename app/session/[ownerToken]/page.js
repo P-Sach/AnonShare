@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { BarChart3, Check, Clock, Copy, Download, Shield } from "lucide-react";
 import { API_BASE } from "../../config";
@@ -219,10 +220,13 @@ export default function SessionPage() {
         <div className="card qr-card">
           <p className="card-label">Scan to Share</p>
           {session.qrCode ? (
-            <img
+            <Image
               src={session.qrCode}
               alt={`QR code for share URL: ${shareUrl}`}
               className="qr-img"
+              width={180}
+              height={180}
+              unoptimized
             />
           ) : (
             <div className="qr-placeholder" aria-label="QR code loading">

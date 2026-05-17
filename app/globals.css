@@ -10,8 +10,8 @@
   --red: #ff4a4a;
   --amber: #ffb020;
   --green: #22dd88;
-  --font-display: "Syne", sans-serif;
-  --font-mono: "Space Mono", monospace;
+  --font-display: var(--font-syne), sans-serif;
+  --font-mono: var(--font-space-mono), monospace;
   --radius: 6px;
   --radius-lg: 10px;
 }

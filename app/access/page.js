@@ -31,7 +31,7 @@ export default function AccessPage() {
         handleVerifyKey({ preventDefault: () => {} }, qrKey);
       }, 300);
     }
-  }, []);
+  }, [handleVerifyKey]);
 
   useEffect(() => {
     if (!isConnected || !connectionInfo) return;
